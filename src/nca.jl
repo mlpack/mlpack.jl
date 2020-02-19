@@ -2,7 +2,8 @@ export nca
 
 using mlpack.util.cli
 
-const ncaLibrary = joinpath(@__DIR__, "libmlpack_julia_nca.so")
+import mlpack_jll
+const ncaLibrary = mlpack_jll.libmlpack_julia_nca
 
 # Call the C binding of the mlpack nca binding.
 function nca_mlpackMain()

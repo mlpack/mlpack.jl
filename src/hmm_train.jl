@@ -2,7 +2,8 @@ export hmm_train
 
 using mlpack.util.cli
 
-const hmm_trainLibrary = joinpath(@__DIR__, "libmlpack_julia_hmm_train.so")
+import mlpack_jll
+const hmm_trainLibrary = mlpack_jll.libmlpack_julia_hmm_train
 
 # Call the C binding of the mlpack hmm_train binding.
 function hmm_train_mlpackMain()

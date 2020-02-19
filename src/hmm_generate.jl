@@ -2,7 +2,8 @@ export hmm_generate
 
 using mlpack.util.cli
 
-const hmm_generateLibrary = joinpath(@__DIR__, "libmlpack_julia_hmm_generate.so")
+import mlpack_jll
+const hmm_generateLibrary = mlpack_jll.libmlpack_julia_hmm_generate
 
 # Call the C binding of the mlpack hmm_generate binding.
 function hmm_generate_mlpackMain()

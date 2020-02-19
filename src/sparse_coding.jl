@@ -2,7 +2,8 @@ export sparse_coding
 
 using mlpack.util.cli
 
-const sparse_codingLibrary = joinpath(@__DIR__, "libmlpack_julia_sparse_coding.so")
+import mlpack_jll
+const sparse_codingLibrary = mlpack_jll.libmlpack_julia_sparse_coding
 
 # Call the C binding of the mlpack sparse_coding binding.
 function sparse_coding_mlpackMain()

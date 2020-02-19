@@ -2,7 +2,8 @@ export hmm_viterbi
 
 using mlpack.util.cli
 
-const hmm_viterbiLibrary = joinpath(@__DIR__, "libmlpack_julia_hmm_viterbi.so")
+import mlpack_jll
+const hmm_viterbiLibrary = mlpack_jll.libmlpack_julia_hmm_viterbi
 
 # Call the C binding of the mlpack hmm_viterbi binding.
 function hmm_viterbi_mlpackMain()

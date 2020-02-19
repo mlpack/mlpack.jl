@@ -2,7 +2,8 @@ export lars
 
 using mlpack.util.cli
 
-const larsLibrary = joinpath(@__DIR__, "libmlpack_julia_lars.so")
+import mlpack_jll
+const larsLibrary = mlpack_jll.libmlpack_julia_lars
 
 # Call the C binding of the mlpack lars binding.
 function lars_mlpackMain()

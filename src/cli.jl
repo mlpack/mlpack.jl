@@ -25,7 +25,8 @@ export CLIEnableVerbose
 export CLIDisableVerbose
 export CLISetPassed
 
-const library = joinpath(@__DIR__, "libmlpack_julia_util.so")
+import mlpack_jll
+const library = mlpack_jll.libmlpack_julia_util
 
 # Utility function to convert 1d object to 2d.
 function convert_to_2d(in::Array{T, 1})::Array{T, 2} where T

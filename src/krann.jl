@@ -2,7 +2,8 @@ export krann
 
 using mlpack.util.cli
 
-const krannLibrary = joinpath(@__DIR__, "libmlpack_julia_krann.so")
+import mlpack_jll
+const krannLibrary = mlpack_jll.libmlpack_julia_krann
 
 # Call the C binding of the mlpack krann binding.
 function krann_mlpackMain()

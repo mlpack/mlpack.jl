@@ -2,7 +2,8 @@ export kmeans
 
 using mlpack.util.cli
 
-const kmeansLibrary = joinpath(@__DIR__, "libmlpack_julia_kmeans.so")
+import mlpack_jll
+const kmeansLibrary = mlpack_jll.libmlpack_julia_kmeans
 
 # Call the C binding of the mlpack kmeans binding.
 function kmeans_mlpackMain()

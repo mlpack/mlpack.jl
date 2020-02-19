@@ -2,7 +2,8 @@ export softmax_regression
 
 using mlpack.util.cli
 
-const softmax_regressionLibrary = joinpath(@__DIR__, "libmlpack_julia_softmax_regression.so")
+import mlpack_jll
+const softmax_regressionLibrary = mlpack_jll.libmlpack_julia_softmax_regression
 
 # Call the C binding of the mlpack softmax_regression binding.
 function softmax_regression_mlpackMain()

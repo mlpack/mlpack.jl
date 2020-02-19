@@ -2,7 +2,8 @@ export det
 
 using mlpack.util.cli
 
-const detLibrary = joinpath(@__DIR__, "libmlpack_julia_det.so")
+import mlpack_jll
+const detLibrary = mlpack_jll.libmlpack_julia_det
 
 # Call the C binding of the mlpack det binding.
 function det_mlpackMain()

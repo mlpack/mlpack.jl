@@ -2,7 +2,8 @@ export decision_tree
 
 using mlpack.util.cli
 
-const decision_treeLibrary = joinpath(@__DIR__, "libmlpack_julia_decision_tree.so")
+import mlpack_jll
+const decision_treeLibrary = mlpack_jll.libmlpack_julia_decision_tree
 
 # Call the C binding of the mlpack decision_tree binding.
 function decision_tree_mlpackMain()

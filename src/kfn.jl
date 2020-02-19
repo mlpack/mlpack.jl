@@ -2,7 +2,8 @@ export kfn
 
 using mlpack.util.cli
 
-const kfnLibrary = joinpath(@__DIR__, "libmlpack_julia_kfn.so")
+import mlpack_jll
+const kfnLibrary = mlpack_jll.libmlpack_julia_kfn
 
 # Call the C binding of the mlpack kfn binding.
 function kfn_mlpackMain()

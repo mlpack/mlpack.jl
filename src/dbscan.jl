@@ -2,7 +2,8 @@ export dbscan
 
 using mlpack.util.cli
 
-const dbscanLibrary = joinpath(@__DIR__, "libmlpack_julia_dbscan.so")
+import mlpack_jll
+const dbscanLibrary = mlpack_jll.libmlpack_julia_dbscan
 
 # Call the C binding of the mlpack dbscan binding.
 function dbscan_mlpackMain()

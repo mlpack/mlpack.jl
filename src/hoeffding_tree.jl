@@ -2,7 +2,8 @@ export hoeffding_tree
 
 using mlpack.util.cli
 
-const hoeffding_treeLibrary = joinpath(@__DIR__, "libmlpack_julia_hoeffding_tree.so")
+import mlpack_jll
+const hoeffding_treeLibrary = mlpack_jll.libmlpack_julia_hoeffding_tree
 
 # Call the C binding of the mlpack hoeffding_tree binding.
 function hoeffding_tree_mlpackMain()

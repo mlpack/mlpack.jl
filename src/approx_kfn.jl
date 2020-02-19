@@ -2,7 +2,8 @@ export approx_kfn
 
 using mlpack.util.cli
 
-const approx_kfnLibrary = joinpath(@__DIR__, "libmlpack_julia_approx_kfn.so")
+import mlpack_jll
+const approx_kfnLibrary = mlpack_jll.libmlpack_julia_approx_kfn
 
 # Call the C binding of the mlpack approx_kfn binding.
 function approx_kfn_mlpackMain()

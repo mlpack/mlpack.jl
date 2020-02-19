@@ -2,7 +2,8 @@ export kernel_pca
 
 using mlpack.util.cli
 
-const kernel_pcaLibrary = joinpath(@__DIR__, "libmlpack_julia_kernel_pca.so")
+import mlpack_jll
+const kernel_pcaLibrary = mlpack_jll.libmlpack_julia_kernel_pca
 
 # Call the C binding of the mlpack kernel_pca binding.
 function kernel_pca_mlpackMain()

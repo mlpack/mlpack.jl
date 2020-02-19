@@ -2,7 +2,8 @@ export lsh
 
 using mlpack.util.cli
 
-const lshLibrary = joinpath(@__DIR__, "libmlpack_julia_lsh.so")
+import mlpack_jll
+const lshLibrary = mlpack_jll.libmlpack_julia_lsh
 
 # Call the C binding of the mlpack lsh binding.
 function lsh_mlpackMain()

@@ -2,7 +2,8 @@ export nbc
 
 using mlpack.util.cli
 
-const nbcLibrary = joinpath(@__DIR__, "libmlpack_julia_nbc.so")
+import mlpack_jll
+const nbcLibrary = mlpack_jll.libmlpack_julia_nbc
 
 # Call the C binding of the mlpack nbc binding.
 function nbc_mlpackMain()

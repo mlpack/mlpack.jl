@@ -2,7 +2,8 @@ export gmm_train
 
 using mlpack.util.cli
 
-const gmm_trainLibrary = joinpath(@__DIR__, "libmlpack_julia_gmm_train.so")
+import mlpack_jll
+const gmm_trainLibrary = mlpack_jll.libmlpack_julia_gmm_train
 
 # Call the C binding of the mlpack gmm_train binding.
 function gmm_train_mlpackMain()

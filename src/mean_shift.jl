@@ -2,7 +2,8 @@ export mean_shift
 
 using mlpack.util.cli
 
-const mean_shiftLibrary = joinpath(@__DIR__, "libmlpack_julia_mean_shift.so")
+import mlpack_jll
+const mean_shiftLibrary = mlpack_jll.libmlpack_julia_mean_shift
 
 # Call the C binding of the mlpack mean_shift binding.
 function mean_shift_mlpackMain()

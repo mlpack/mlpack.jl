@@ -2,7 +2,8 @@ export knn
 
 using mlpack.util.cli
 
-const knnLibrary = joinpath(@__DIR__, "libmlpack_julia_knn.so")
+import mlpack_jll
+const knnLibrary = mlpack_jll.libmlpack_julia_knn
 
 # Call the C binding of the mlpack knn binding.
 function knn_mlpackMain()

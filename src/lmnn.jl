@@ -2,7 +2,8 @@ export lmnn
 
 using mlpack.util.cli
 
-const lmnnLibrary = joinpath(@__DIR__, "libmlpack_julia_lmnn.so")
+import mlpack_jll
+const lmnnLibrary = mlpack_jll.libmlpack_julia_lmnn
 
 # Call the C binding of the mlpack lmnn binding.
 function lmnn_mlpackMain()

@@ -2,7 +2,8 @@ export fastmks
 
 using mlpack.util.cli
 
-const fastmksLibrary = joinpath(@__DIR__, "libmlpack_julia_fastmks.so")
+import mlpack_jll
+const fastmksLibrary = mlpack_jll.libmlpack_julia_fastmks
 
 # Call the C binding of the mlpack fastmks binding.
 function fastmks_mlpackMain()

@@ -2,7 +2,8 @@ export perceptron
 
 using mlpack.util.cli
 
-const perceptronLibrary = joinpath(@__DIR__, "libmlpack_julia_perceptron.so")
+import mlpack_jll
+const perceptronLibrary = mlpack_jll.libmlpack_julia_perceptron
 
 # Call the C binding of the mlpack perceptron binding.
 function perceptron_mlpackMain()

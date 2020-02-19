@@ -2,7 +2,8 @@ export pca
 
 using mlpack.util.cli
 
-const pcaLibrary = joinpath(@__DIR__, "libmlpack_julia_pca.so")
+import mlpack_jll
+const pcaLibrary = mlpack_jll.libmlpack_julia_pca
 
 # Call the C binding of the mlpack pca binding.
 function pca_mlpackMain()

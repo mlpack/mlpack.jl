@@ -2,7 +2,8 @@ export preprocess_describe
 
 using mlpack.util.cli
 
-const preprocess_describeLibrary = joinpath(@__DIR__, "libmlpack_julia_preprocess_describe.so")
+import mlpack_jll
+const preprocess_describeLibrary = mlpack_jll.libmlpack_julia_preprocess_describe
 
 # Call the C binding of the mlpack preprocess_describe binding.
 function preprocess_describe_mlpackMain()

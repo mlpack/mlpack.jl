@@ -2,7 +2,8 @@ export gmm_generate
 
 using mlpack.util.cli
 
-const gmm_generateLibrary = joinpath(@__DIR__, "libmlpack_julia_gmm_generate.so")
+import mlpack_jll
+const gmm_generateLibrary = mlpack_jll.libmlpack_julia_gmm_generate
 
 # Call the C binding of the mlpack gmm_generate binding.
 function gmm_generate_mlpackMain()

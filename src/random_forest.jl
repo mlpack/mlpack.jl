@@ -2,7 +2,8 @@ export random_forest
 
 using mlpack.util.cli
 
-const random_forestLibrary = joinpath(@__DIR__, "libmlpack_julia_random_forest.so")
+import mlpack_jll
+const random_forestLibrary = mlpack_jll.libmlpack_julia_random_forest
 
 # Call the C binding of the mlpack random_forest binding.
 function random_forest_mlpackMain()

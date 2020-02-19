@@ -2,7 +2,8 @@ export decision_stump
 
 using mlpack.util.cli
 
-const decision_stumpLibrary = joinpath(@__DIR__, "libmlpack_julia_decision_stump.so")
+import mlpack_jll
+const decision_stumpLibrary = mlpack_jll.libmlpack_julia_decision_stump
 
 # Call the C binding of the mlpack decision_stump binding.
 function decision_stump_mlpackMain()

@@ -2,7 +2,8 @@ export local_coordinate_coding
 
 using mlpack.util.cli
 
-const local_coordinate_codingLibrary = joinpath(@__DIR__, "libmlpack_julia_local_coordinate_coding.so")
+import mlpack_jll
+const local_coordinate_codingLibrary = mlpack_jll.libmlpack_julia_local_coordinate_coding
 
 # Call the C binding of the mlpack local_coordinate_coding binding.
 function local_coordinate_coding_mlpackMain()

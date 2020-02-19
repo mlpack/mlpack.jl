@@ -2,7 +2,8 @@ export cf
 
 using mlpack.util.cli
 
-const cfLibrary = joinpath(@__DIR__, "libmlpack_julia_cf.so")
+import mlpack_jll
+const cfLibrary = mlpack_jll.libmlpack_julia_cf
 
 # Call the C binding of the mlpack cf binding.
 function cf_mlpackMain()

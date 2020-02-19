@@ -2,7 +2,8 @@ export hmm_loglik
 
 using mlpack.util.cli
 
-const hmm_loglikLibrary = joinpath(@__DIR__, "libmlpack_julia_hmm_loglik.so")
+import mlpack_jll
+const hmm_loglikLibrary = mlpack_jll.libmlpack_julia_hmm_loglik
 
 # Call the C binding of the mlpack hmm_loglik binding.
 function hmm_loglik_mlpackMain()

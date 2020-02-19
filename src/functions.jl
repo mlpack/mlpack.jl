@@ -1,6 +1,5 @@
 # This file imports all of the mlpack functions into the mlpack module.
 
-test_julia_binding = util.test_julia_binding
 adaboost = util.adaboost
 approx_kfn = util.approx_kfn
 cf = util.cf
@@ -24,7 +23,6 @@ lars = util.lars
 linear_regression = util.linear_regression
 lmnn = util.lmnn
 local_coordinate_coding = util.local_coordinate_coding
-logistic_regression = util.logistic_regression
 lsh = util.lsh
 mean_shift = util.mean_shift
 nbc = util.nbc

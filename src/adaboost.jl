@@ -2,7 +2,8 @@ export adaboost
 
 using mlpack.util.cli
 
-const adaboostLibrary = joinpath(@__DIR__, "libmlpack_julia_adaboost.so")
+import mlpack_jll
+const adaboostLibrary = mlpack_jll.libmlpack_julia_adaboost
 
 # Call the C binding of the mlpack adaboost binding.
 function adaboost_mlpackMain()

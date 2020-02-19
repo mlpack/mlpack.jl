@@ -2,7 +2,8 @@ export emst
 
 using mlpack.util.cli
 
-const emstLibrary = joinpath(@__DIR__, "libmlpack_julia_emst.so")
+import mlpack_jll
+const emstLibrary = mlpack_jll.libmlpack_julia_emst
 
 # Call the C binding of the mlpack emst binding.
 function emst_mlpackMain()

@@ -2,7 +2,8 @@ export nmf
 
 using mlpack.util.cli
 
-const nmfLibrary = joinpath(@__DIR__, "libmlpack_julia_nmf.so")
+import mlpack_jll
+const nmfLibrary = mlpack_jll.libmlpack_julia_nmf
 
 # Call the C binding of the mlpack nmf binding.
 function nmf_mlpackMain()

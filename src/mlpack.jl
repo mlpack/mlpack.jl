@@ -3,7 +3,6 @@ module mlpack
 module util
 
 include("cli.jl")
-include("test_julia_binding.jl")
 include("adaboost.jl")
 include("approx_kfn.jl")
 include("cf.jl")
@@ -27,7 +26,6 @@ include("lars.jl")
 include("linear_regression.jl")
 include("lmnn.jl")
 include("local_coordinate_coding.jl")
-include("logistic_regression.jl")
 include("lsh.jl")
 include("mean_shift.jl")
 include("nbc.jl")

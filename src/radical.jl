@@ -2,7 +2,8 @@ export radical
 
 using mlpack.util.cli
 
-const radicalLibrary = joinpath(@__DIR__, "libmlpack_julia_radical.so")
+import mlpack_jll
+const radicalLibrary = mlpack_jll.libmlpack_julia_radical
 
 # Call the C binding of the mlpack radical binding.
 function radical_mlpackMain()

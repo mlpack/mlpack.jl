@@ -2,7 +2,8 @@ export linear_regression
 
 using mlpack.util.cli
 
-const linear_regressionLibrary = joinpath(@__DIR__, "libmlpack_julia_linear_regression.so")
+import mlpack_jll
+const linear_regressionLibrary = mlpack_jll.libmlpack_julia_linear_regression
 
 # Call the C binding of the mlpack linear_regression binding.
 function linear_regression_mlpackMain()

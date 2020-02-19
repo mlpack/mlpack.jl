@@ -2,7 +2,8 @@ export preprocess_binarize
 
 using mlpack.util.cli
 
-const preprocess_binarizeLibrary = joinpath(@__DIR__, "libmlpack_julia_preprocess_binarize.so")
+import mlpack_jll
+const preprocess_binarizeLibrary = mlpack_jll.libmlpack_julia_preprocess_binarize
 
 # Call the C binding of the mlpack preprocess_binarize binding.
 function preprocess_binarize_mlpackMain()

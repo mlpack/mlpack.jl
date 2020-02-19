@@ -2,7 +2,8 @@ export preprocess_split
 
 using mlpack.util.cli
 
-const preprocess_splitLibrary = joinpath(@__DIR__, "libmlpack_julia_preprocess_split.so")
+import mlpack_jll
+const preprocess_splitLibrary = mlpack_jll.libmlpack_julia_preprocess_split
 
 # Call the C binding of the mlpack preprocess_split binding.
 function preprocess_split_mlpackMain()
