@@ -57,4 +57,11 @@ grep -v 'logistic_regression = util.logistic_regression' src/functions.jl > src/
 mv src/functions-tmp.jl src/functions.jl
 ```
 
- 11. Commit any changed files and any added files in `src/`.
+ 11. Add the Julia dependency information to `Project.toml`:
+
+```
+[compat]
+julia = ">= 1.3"
+```
+
+ 12. Commit any changed files and any added files in `src/`.
