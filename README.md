@@ -21,7 +21,7 @@ auto-generated, and so this repository is not really maintained or monitored.
 
 If you are *looking for the documentation* for the Julia bindings, try here:
 
- * [Julia binding documentation](https://www.mlpack.org/doc/stable/julia_documentation.html)
+ * [Julia binding documentation](XXX https://www.mlpack.org/doc/stable/julia_documentation.html)
 
 If you are *having trouble* or *want to learn more*, try looking in the main
 mlpack repository:
