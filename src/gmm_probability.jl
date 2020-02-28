@@ -3,7 +3,7 @@ export gmm_probability
 using mlpack.util.cli
 
 import mlpack_jll
-const gmm_probabilityLibrary = mlpack_jll.libmlpack_gmm_probability
+const gmm_probabilityLibrary = mlpack_jll.libmlpack_julia_gmm_probability
 
 # Call the C binding of the mlpack gmm_probability binding.
 function gmm_probability_mlpackMain()

@@ -18,7 +18,8 @@ julia> Pkg.add("mlpack_jll")
 ```
 
  6. See that `mlpack_jll` has been added to the `[deps]` section of the
-    `Project.toml` file.
+    `Project.toml` file.  Ensure that the right version is specified in the
+    `[compat]` section.
  7. Modify all the bindings to use the packaged `mlpack_jll` wrappers instead of
     the handbuilt ones:
 
@@ -28,15 +29,7 @@ for i in src/*.jl;
 done
 ```
 
- 8. Work around the fact that `mlpack_jll` has misnamed GMM probability bindings:
-
-```
-for i in src/*.jl;
-  do sed -i -e 's/libmlpack_julia_gmm_probability/libmlpack_gmm_probability/' $i;
-done
-```
-
- 9. Remove the test binding:
+ 8. Remove the test binding:
 
 ```
 rm -f src/test_julia_binding.jl
@@ -46,22 +39,11 @@ grep -v 'test_julia_binding = util.test_julia_binding' src/functions.jl > src/fu
 mv src/functions-tmp.jl src/functions.jl
 ```
 
- 10. Remove logistic regression since it isn't currently in `mlpack_jll` (this
-     should be fixed very soon!):
-
-```
-rm -f src/logistic_regression.jl
-grep -v 'include("logistic_regression.jl")' src/mlpack.jl > src/mlpack-tmp.jl
-mv src/mlpack-tmp.jl src/mlpack.jl
-grep -v 'logistic_regression = util.logistic_regression' src/functions.jl > src/functions-tmp.jl
-mv src/functions-tmp.jl src/functions.jl
-```
-
- 11. Add the Julia dependency information to `Project.toml`:
+ 9. Add the Julia dependency information to `Project.toml`:
 
 ```
 [compat]
-julia = ">= 1.3"
+julia = "= 1.3"
 ```
 
- 12. Commit any changed files and any added files in `src/`.
+ 10. Commit any changed files and any added files in `src/`.
