@@ -1,6 +1,6 @@
 export mean_shift
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const mean_shiftLibrary = mlpack_jll.libmlpack_julia_mean_shift
@@ -38,9 +38,11 @@ centroids of each cluster may be saved with the `centroid` output parameter.
 For example, to run mean shift clustering on the dataset `data` and store the
 centroids to `centroids`, the following command may be used: 
 
+```julia
 julia> using CSV
 julia> data = CSV.read("data.csv")
 julia> centroids, _ = mean_shift(data)
+```
 
 # Arguments
 

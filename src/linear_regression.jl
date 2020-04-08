@@ -1,6 +1,6 @@
 export linear_regression
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const linear_regressionLibrary = mlpack_jll.libmlpack_julia_linear_regression
@@ -58,19 +58,23 @@ mlpack implements as the 'lars' program.
 For example, to run a linear regression on the dataset `X` with responses `y`,
 saving the trained model to `lr_model`, the following command could be used:
 
+```julia
 julia> using CSV
 julia> X = CSV.read("X.csv")
 julia> y = CSV.read("y.csv")
 julia> lr_model, _ = linear_regression(training=X,
             training_responses=y)
+```
 
 Then, to use `lr_model` to predict responses for a test set `X_test`, saving the
 predictions to `X_test_responses`, the following command could be used:
 
+```julia
 julia> using CSV
 julia> X_test = CSV.read("X_test.csv")
 julia> _, X_test_responses = linear_regression(input_model=lr_model,
             test=X_test)
+```
 
 # Arguments
 

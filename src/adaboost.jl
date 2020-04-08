@@ -1,6 +1,6 @@
 export adaboost
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const adaboostLibrary = mlpack_jll.libmlpack_julia_adaboost
@@ -64,19 +64,23 @@ For example, to run AdaBoost on an input dataset `data` with perceptrons as the
 weak learner type, storing the trained model in `model`, one could use the
 following command: 
 
+```julia
 julia> using CSV
 julia> data = CSV.read("data.csv")
 julia> _, model, _, _ = adaboost(training=data,
             weak_learner="perceptron")
+```
 
 Similarly, an already-trained model in `model` can be used to provide class
 predictions from test data `test_data` and store the output in `predictions`
 with the following command: 
 
+```julia
 julia> using CSV
 julia> test_data = CSV.read("test_data.csv")
 julia> _, _, predictions, _ = adaboost(input_model=model,
             test=test_data)
+```
 
 # Arguments
 
@@ -84,7 +88,7 @@ julia> _, _, predictions, _ = adaboost(input_model=model,
  - `iterations::Int`: The maximum number of boosting iterations to be run
       (0 will run until convergence.)  Default value `1000`.
       
- - `labels::Array{Int64, 1}`: Labels for the training set.
+ - `labels::Array{Int, 1}`: Labels for the training set.
  - `test::Array{Float64, 2}`: Test dataset.
  - `tolerance::Float64`: The tolerance for change in values of the
       weighted error during training.  Default value `1e-10`.
@@ -99,9 +103,9 @@ julia> _, _, predictions, _ = adaboost(input_model=model,
 
 # Return values
 
- - `output::Array{Int64, 1}`: Predicted labels for the test set.
+ - `output::Array{Int, 1}`: Predicted labels for the test set.
  - `output_model::unknown_`: Output trained AdaBoost model.
- - `predictions::Array{Int64, 1}`: Predicted labels for the test set.
+ - `predictions::Array{Int, 1}`: Predicted labels for the test set.
  - `probabilities::Array{Float64, 2}`: Predicted class probabilities for
       each point in the test set.
 

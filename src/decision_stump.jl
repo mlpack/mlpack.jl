@@ -1,6 +1,6 @@
 export decision_stump
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const decision_stumpLibrary = mlpack_jll.libmlpack_julia_decision_stump
@@ -71,9 +71,8 @@ parameter.  That stump may later be re-used in subsequent calls to this program
       decision stump bucket.  Default value `6`.
       
  - `input_model::unknown_`: Decision stump model to load.
- - `labels::Array{Int64, 1}`: Labels for the training set. If not
-      specified, the labels are assumed to be the last row of the training
-      data.
+ - `labels::Array{Int, 1}`: Labels for the training set. If not specified,
+      the labels are assumed to be the last row of the training data.
  - `test::Array{Float64, 2}`: A dataset to calculate predictions for.
  - `training::Array{Float64, 2}`: The dataset to train on.
  - `verbose::Bool`: Display informational messages and the full list of
@@ -83,7 +82,7 @@ parameter.  That stump may later be re-used in subsequent calls to this program
 # Return values
 
  - `output_model::unknown_`: Output decision stump model to save.
- - `predictions::Array{Int64, 1}`: The output matrix that will hold the
+ - `predictions::Array{Int, 1}`: The output matrix that will hold the
       predicted labels for the test set.
 
 """

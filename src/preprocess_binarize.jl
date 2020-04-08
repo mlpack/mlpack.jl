@@ -1,6 +1,6 @@
 export preprocess_binarize
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const preprocess_binarizeLibrary = mlpack_jll.libmlpack_julia_preprocess_binarize
@@ -36,16 +36,20 @@ For example, if we want to set all variables greater than 5 in the dataset `X`
 to 1 and variables less than or equal to 5.0 to 0, and save the result to `Y`,
 we could run
 
+```julia
 julia> using CSV
 julia> X = CSV.read("X.csv")
 julia> Y = preprocess_binarize(X; threshold=5)
+```
 
 But if we want to apply this to only the first (0th) dimension of `X`,  we could
 instead run
 
+```julia
 julia> using CSV
 julia> X = CSV.read("X.csv")
 julia> Y = preprocess_binarize(X; dimension=0, threshold=5)
+```
 
 # Arguments
 

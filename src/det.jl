@@ -1,6 +1,6 @@
 export det
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const detLibrary = mlpack_jll.libmlpack_julia_det

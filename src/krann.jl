@@ -1,6 +1,6 @@
 export krann
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const krannLibrary = mlpack_jll.libmlpack_julia_krann
@@ -43,10 +43,12 @@ For example, the following will return 5 neighbors from the top 0.1% of the data
 (with probability 0.95) for each point in `input` and store the distances in
 `distances` and the neighbors in `neighbors.csv`:
 
+```julia
 julia> using CSV
 julia> input = CSV.read("input.csv")
 julia> distances, neighbors, _ = krann(k=5, reference=input,
             tau=0.1)
+```
 
 Note that tau must be set such that the number of points in the corresponding
 percentile of the data is greater than k.  Thus, if we choose tau = 0.1 with a
@@ -110,7 +112,7 @@ those two points.
 # Return values
 
  - `distances::Array{Float64, 2}`: Matrix to output distances into.
- - `neighbors::Array{Int64, 2}`: Matrix to output neighbors into.
+ - `neighbors::Array{Int, 2}`: Matrix to output neighbors into.
  - `output_model::unknown_`: If specified, the kNN model will be output
       here.
 

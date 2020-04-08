@@ -1,6 +1,6 @@
 export preprocess_describe
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const preprocess_describeLibrary = mlpack_jll.libmlpack_julia_preprocess_describe
@@ -38,16 +38,20 @@ population.  Otherwise, the dataset will be considered as a sample.
 So, a simple example where we want to print out statistical facts about the
 dataset `X` using the default settings, we could run 
 
+```julia
 julia> using CSV
 julia> X = CSV.read("X.csv")
 julia> preprocess_describe(X; verbose=1)
+```
 
 If we want to customize the width to 10 and precision to 5 and consider the
 dataset as a population, we could run
 
+```julia
 julia> using CSV
 julia> X = CSV.read("X.csv")
 julia> preprocess_describe(X; precision=5, verbose=1, width=10)
+```
 
 # Arguments
 

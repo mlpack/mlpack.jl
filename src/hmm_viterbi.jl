@@ -1,6 +1,6 @@
 export hmm_viterbi
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const hmm_viterbiLibrary = mlpack_jll.libmlpack_julia_hmm_viterbi
@@ -42,9 +42,11 @@ For example, to predict the state sequence of the observations `obs` using the
 HMM `hmm`, storing the predicted state sequence to `states`, the following
 command could be used:
 
+```julia
 julia> using CSV
 julia> obs = CSV.read("obs.csv")
 julia> states = hmm_viterbi(obs, hmm)
+```
 
 # Arguments
 
@@ -56,7 +58,7 @@ julia> states = hmm_viterbi(obs, hmm)
 
 # Return values
 
- - `output::Array{Int64, 2}`: File to save predicted state sequence to.
+ - `output::Array{Int, 2}`: File to save predicted state sequence to.
 
 """
 function hmm_viterbi(input,

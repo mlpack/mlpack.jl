@@ -1,6 +1,6 @@
 export hmm_generate
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const hmm_generateLibrary = mlpack_jll.libmlpack_julia_hmm_generate
@@ -46,7 +46,9 @@ For example, to generate a sequence of length 150 from the HMM `hmm` and save
 the observation sequence to `observations` and the hidden state sequence to
 `states`, the following command may be used: 
 
+```julia
 julia> observations, states = hmm_generate(150, hmm)
+```
 
 # Arguments
 
@@ -64,7 +66,7 @@ julia> observations, states = hmm_generate(150, hmm)
 # Return values
 
  - `output::Array{Float64, 2}`: Matrix to save observation sequence to.
- - `state::Array{Int64, 2}`: Matrix to save hidden state sequence to.
+ - `state::Array{Int, 2}`: Matrix to save hidden state sequence to.
 
 """
 function hmm_generate(length::Int,

@@ -1,6 +1,6 @@
 export hoeffding_tree
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const hoeffding_treeLibrary = mlpack_jll.libmlpack_julia_hoeffding_tree
@@ -61,15 +61,19 @@ be saved with the `probabilities` output parameter.
 For example, to train a Hoeffding tree with confidence 0.99 with data `dataset`,
 saving the trained tree to `tree`, the following command may be used:
 
+```julia
 julia> tree, _, _ = hoeffding_tree(confidence=0.99,
             training=dataset)
+```
 
 Then, this tree may be used to make predictions on the test set `test_set`,
 saving the predictions into `predictions` and the class probabilities into
 `class_probs` with the following command: 
 
+```julia
 julia> _, predictions, class_probs =
             hoeffding_tree(input_model=tree, test=test_set)
+```
 
 # Arguments
 
@@ -87,7 +91,7 @@ julia> _, predictions, class_probs =
       impurity for calculating Hoeffding bounds.  Default value `false`.
       
  - `input_model::unknown_`: Input trained Hoeffding tree model.
- - `labels::Array{Int64, 1}`: Labels for training dataset.
+ - `labels::Array{Int, 1}`: Labels for training dataset.
  - `max_samples::Int`: Maximum number of samples before splitting. 
       Default value `5000`.
       
@@ -106,7 +110,7 @@ julia> _, predictions, class_probs =
       
  - `test::Tuple{Array{Bool, 1}, Array{Float64, 2}}`: Testing dataset (may
       be categorical).
- - `test_labels::Array{Int64, 1}`: Labels of test data.
+ - `test_labels::Array{Int, 1}`: Labels of test data.
  - `training::Tuple{Array{Bool, 1}, Array{Float64, 2}}`: Training dataset
       (may be categorical).
  - `verbose::Bool`: Display informational messages and the full list of
@@ -116,7 +120,7 @@ julia> _, predictions, class_probs =
 # Return values
 
  - `output_model::unknown_`: Output for trained Hoeffding tree model.
- - `predictions::Array{Int64, 1}`: Matrix to output label predictions for
+ - `predictions::Array{Int, 1}`: Matrix to output label predictions for
       test data into.
  - `probabilities::Array{Float64, 2}`: In addition to predicting labels,
       provide rediction probabilities in this matrix.

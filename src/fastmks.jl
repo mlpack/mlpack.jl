@@ -1,6 +1,6 @@
 export fastmks
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const fastmksLibrary = mlpack_jll.libmlpack_julia_fastmks
@@ -45,11 +45,13 @@ kernel evaluation using the linear kernel.  The kernel evaluations may be saved
 with the  `kernels` output parameter and the indices may be saved with the
 `indices` output parameter.
 
+```julia
 julia> using CSV
 julia> reference = CSV.read("reference.csv")
 julia> query = CSV.read("query.csv")
 julia> indices, kernels, _ = fastmks(k=5, kernel="linear",
             query=query, reference=reference)
+```
 
 The output matrices are organized such that row i and column j in the indices
 matrix corresponds to the index of the point in the reference set that has j'th
@@ -97,7 +99,7 @@ cover tree can be specified with the `base` parameter.
 
 # Return values
 
- - `indices::Array{Int64, 2}`: Output matrix of indices.
+ - `indices::Array{Int, 2}`: Output matrix of indices.
  - `kernels::Array{Float64, 2}`: Output matrix of kernels.
  - `output_model::unknown_`: Output for FastMKS model.
 

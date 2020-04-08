@@ -1,6 +1,6 @@
 export preprocess_split
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const preprocess_splitLibrary = mlpack_jll.libmlpack_julia_preprocess_split
@@ -40,24 +40,28 @@ So, a simple example where we want to split the dataset `X` into `X_train` and
 `X_test` with 60% of the data in the training set and 40% of the dataset in the
 test set, we could run 
 
+```julia
 julia> using CSV
 julia> X = CSV.read("X.csv")
 julia> X_test, _, X_train, _ = preprocess_split(X; test_ratio=0.4)
+```
 
 If we had a dataset `X` and associated labels `y`, and we wanted to split these
 into `X_train`, `y_train`, `X_test`, and `y_test`, with 30% of the data in the
 test set, we could run
 
+```julia
 julia> using CSV
 julia> X = CSV.read("X.csv")
-julia> y = CSV.read("y.csv"; type=Int64)
+julia> y = CSV.read("y.csv"; type=Int)
 julia> X_test, y_test, X_train, y_train = preprocess_split(X;
             input_labels=y, test_ratio=0.3)
+```
 
 # Arguments
 
  - `input::Array{Float64, 2}`: Matrix containing data.
- - `input_labels::Array{Int64, 2}`: Matrix containing labels.
+ - `input_labels::Array{Int, 2}`: Matrix containing labels.
  - `seed::Int`: Random seed (0 for std::time(NULL)).  Default value `0`.
 
  - `test_ratio::Float64`: Ratio of test set; if not set,the ratio defaults
@@ -70,9 +74,9 @@ julia> X_test, y_test, X_train, y_train = preprocess_split(X;
 # Return values
 
  - `test::Array{Float64, 2}`: Matrix to save test data to.
- - `test_labels::Array{Int64, 2}`: Matrix to save test labels to.
+ - `test_labels::Array{Int, 2}`: Matrix to save test labels to.
  - `training::Array{Float64, 2}`: Matrix to save training data to.
- - `training_labels::Array{Int64, 2}`: Matrix to save train labels to.
+ - `training_labels::Array{Int, 2}`: Matrix to save train labels to.
 
 """
 function preprocess_split(input;

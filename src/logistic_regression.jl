@@ -1,6 +1,6 @@
 export logistic_regression
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const logistic_regressionLibrary = mlpack_jll.libmlpack_julia_logistic_regression
@@ -90,19 +90,23 @@ As an example, to train a logistic regression model on the data '`data`' with
 labels '`labels`' with L2 regularization of 0.1, saving the model to
 '`lr_model`', the following command may be used:
 
+```julia
 julia> using CSV
 julia> data = CSV.read("data.csv")
-julia> labels = CSV.read("labels.csv"; type=Int64)
+julia> labels = CSV.read("labels.csv"; type=Int)
 julia> _, lr_model, _, _, _ = logistic_regression(labels=labels,
             lambda=0.1, training=data)
+```
 
 Then, to use that model to predict classes for the dataset '`test`', storing the
 output predictions in '`predictions`', the following command may be used: 
 
+```julia
 julia> using CSV
 julia> test = CSV.read("test.csv")
 julia> predictions, _, _, _, _ =
             logistic_regression(input_model=lr_model, test=test)
+```
 
 # Arguments
 
@@ -113,7 +117,7 @@ julia> predictions, _, _, _, _ =
       taken to be 0; otherwise, the class is 1.  Default value `0.5`.
       
  - `input_model::unknown_`: Existing model (parameters).
- - `labels::Array{Int64, 1}`: A matrix containing labels (0 or 1) for the
+ - `labels::Array{Int, 1}`: A matrix containing labels (0 or 1) for the
       points in the training set (y).
  - `lambda::Float64`: L2-regularization parameter for training.  Default
       value `0`.
@@ -139,15 +143,15 @@ julia> predictions, _, _, _, _ =
 
 # Return values
 
- - `output::Array{Int64, 1}`: If test data is specified, this matrix is
+ - `output::Array{Int, 1}`: If test data is specified, this matrix is
       where the predictions for the test set will be saved.
  - `output_model::unknown_`: Output for trained logistic regression
       model.
  - `output_probabilities::Array{Float64, 2}`: If test data is specified,
       this matrix is where the class probabilities for the test set will be
       saved.
- - `predictions::Array{Int64, 1}`: If test data is specified, this matrix
-      is where the predictions for the test set will be saved.
+ - `predictions::Array{Int, 1}`: If test data is specified, this matrix is
+      where the predictions for the test set will be saved.
  - `probabilities::Array{Float64, 2}`: If test data is specified, this
       matrix is where the class probabilities for the test set will be saved.
 

@@ -1,6 +1,6 @@
 export random_forest
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const random_forestLibrary = mlpack_jll.libmlpack_julia_random_forest
@@ -66,28 +66,32 @@ For example, to train a random forest with a minimum leaf size of 20 using 10
 trees on the dataset contained in `data`with labels `labels`, saving the output
 random forest to `rf_model` and printing the training error, one could call
 
+```julia
 julia> using CSV
 julia> data = CSV.read("data.csv")
-julia> labels = CSV.read("labels.csv"; type=Int64)
+julia> labels = CSV.read("labels.csv"; type=Int)
 julia> rf_model, _, _ = random_forest(labels=labels,
             minimum_leaf_size=20, num_trees=10, print_training_accuracy=1,
             training=data)
+```
 
 Then, to use that model to classify points in `test_set` and print the test
 error given the labels `test_labels` using that model, while saving the
 predictions for each point to `predictions`, one could call 
 
+```julia
 julia> using CSV
 julia> test_set = CSV.read("test_set.csv")
-julia> test_labels = CSV.read("test_labels.csv"; type=Int64)
+julia> test_labels = CSV.read("test_labels.csv"; type=Int)
 julia> _, predictions, _ = random_forest(input_model=rf_model,
             test=test_set, test_labels=test_labels)
+```
 
 # Arguments
 
  - `input_model::unknown_`: Pre-trained random forest to use for
       classification.
- - `labels::Array{Int64, 1}`: Labels for training dataset.
+ - `labels::Array{Int, 1}`: Labels for training dataset.
  - `maximum_depth::Int`: Maximum depth of the tree (0 means no limit). 
       Default value `0`.
       
@@ -112,7 +116,7 @@ julia> _, predictions, _ = random_forest(input_model=rf_model,
       Default value `0`.
       
  - `test::Array{Float64, 2}`: Test dataset to produce predictions for.
- - `test_labels::Array{Int64, 1}`: Test dataset labels, if accuracy
+ - `test_labels::Array{Int, 1}`: Test dataset labels, if accuracy
       calculation is desired.
  - `training::Array{Float64, 2}`: Training dataset.
  - `verbose::Bool`: Display informational messages and the full list of
@@ -122,7 +126,7 @@ julia> _, predictions, _ = random_forest(input_model=rf_model,
 # Return values
 
  - `output_model::unknown_`: Model to save trained random forest to.
- - `predictions::Array{Int64, 1}`: Predicted classes for each point in the
+ - `predictions::Array{Int, 1}`: Predicted classes for each point in the
       test set.
  - `probabilities::Array{Float64, 2}`: Predicted class probabilities for
       each point in the test set.

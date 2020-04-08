@@ -1,6 +1,6 @@
 export perceptron
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const perceptronLibrary = mlpack_jll.libmlpack_julia_perceptron
@@ -63,20 +63,24 @@ perceptron for later classification.  The invocation below trains a perceptron
 on `training_data` with labels `training_labels`, and saves the model to
 `perceptron_model`.
 
+```julia
 julia> using CSV
 julia> training_data = CSV.read("training_data.csv")
-julia> training_labels = CSV.read("training_labels.csv"; type=Int64)
+julia> training_labels = CSV.read("training_labels.csv"; type=Int)
 julia> _, perceptron_model, _ = perceptron(labels=training_labels,
             training=training_data)
+```
 
 Then, this model can be re-used for classification on the test data `test_data`.
  The example below does precisely that, saving the predicted classes to
 `predictions`.
 
+```julia
 julia> using CSV
 julia> test_data = CSV.read("test_data.csv")
 julia> _, _, predictions = perceptron(input_model=perceptron_model,
             test=test_data)
+```
 
 Note that all of the options may be specified at once: predictions may be
 calculated right after training a model, and model training can occur even if an
@@ -90,7 +94,7 @@ error.
 # Arguments
 
  - `input_model::unknown_`: Input perceptron model.
- - `labels::Array{Int64, 1}`: A matrix containing labels for the training
+ - `labels::Array{Int, 1}`: A matrix containing labels for the training
       set.
  - `max_iterations::Int`: The maximum number of iterations the perceptron
       is to be run  Default value `1000`.
@@ -103,11 +107,11 @@ error.
 
 # Return values
 
- - `output::Array{Int64, 1}`: The matrix in which the predicted labels for
+ - `output::Array{Int, 1}`: The matrix in which the predicted labels for
       the test set will be written.
  - `output_model::unknown_`: Output for trained perceptron model.
- - `predictions::Array{Int64, 1}`: The matrix in which the predicted
-      labels for the test set will be written.
+ - `predictions::Array{Int, 1}`: The matrix in which the predicted labels
+      for the test set will be written.
 
 """
 function perceptron(;

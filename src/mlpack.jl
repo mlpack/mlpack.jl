@@ -1,6 +1,31 @@
+"""
+    mlpack
+
+mlpack is a fast, flexible machine learning library, written in C++, that aims
+to provide fast, extensible implementations of cutting-edge machine learning
+algorithms.  This module provides those implementations as Julia functions.
+
+Each function inside the module performs a specific machine learning task.
+
+For complete documentation of these functions, including example usage, see the
+mlpack website's documentation for the Julia bindings:
+
+https://www.mlpack.org/doc/stable/julia_documentation.html
+
+Each function also contains an equivalent docstring; the Julia REPL's help
+functionality can be used to access the documentation that way.
+"""
 module mlpack
 
-module util
+"""
+    mlpack._Internal
+
+This module contains internal implementations details of mlpack.  There
+shouldn't be any need to go digging around in here if you're just using mlpack.
+(But don't let this comment discourage you if you're just curious and poking
+around!)
+"""
+module _Internal
 
 include("cli.jl")
 include("adaboost.jl")
@@ -39,6 +64,8 @@ include("perceptron.jl")
 include("preprocess_split.jl")
 include("preprocess_binarize.jl")
 include("preprocess_describe.jl")
+include("preprocess_scale.jl")
+include("image_converter.jl")
 include("radical.jl")
 include("random_forest.jl")
 include("krann.jl")

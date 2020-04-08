@@ -1,6 +1,6 @@
 export gmm_probability
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const gmm_probabilityLibrary = mlpack_jll.libmlpack_julia_gmm_probability
@@ -42,9 +42,11 @@ So, for example, to calculate the probabilities of each point in `points` coming
 from the pre-trained GMM `gmm`, while storing those probabilities in `probs`,
 the following command could be used:
 
+```julia
 julia> using CSV
 julia> points = CSV.read("points.csv")
 julia> probs = gmm_probability(points, gmm)
+```
 
 # Arguments
 

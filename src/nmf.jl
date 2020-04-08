@@ -1,6 +1,6 @@
 export nmf
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const nmfLibrary = mlpack_jll.libmlpack_julia_nmf
@@ -48,9 +48,11 @@ For example, to run NMF on the input matrix `V` using the 'multdist' update
 rules with a rank-10 decomposition and storing the decomposed matrices into `W`
 and `H`, the following command could be used: 
 
+```julia
 julia> using CSV
 julia> V = CSV.read("V.csv")
 julia> H, W = nmf(V, 10; update_rules="multdist")
+```
 
 # Arguments
 

@@ -1,6 +1,6 @@
 export pca
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const pcaLibrary = mlpack_jll.libmlpack_julia_pca
@@ -43,10 +43,12 @@ For example, to reduce the dimensionality of the matrix `data` to 5 dimensions
 using randomized SVD for the decomposition, storing the output matrix to
 `data_mod`, the following command can be used:
 
+```julia
 julia> using CSV
 julia> data = CSV.read("data.csv")
 julia> data_mod = pca(data; decomposition_method="randomized",
             new_dimensionality=5)
+```
 
 # Arguments
 

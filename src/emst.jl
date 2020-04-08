@@ -1,6 +1,6 @@
 export emst
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const emstLibrary = mlpack_jll.libmlpack_julia_emst
@@ -39,9 +39,11 @@ For example, the minimum spanning tree of the input dataset `data` can be
 calculated with a leaf size of 20 and stored as `spanning_tree` using the
 following command:
 
+```julia
 julia> using CSV
 julia> data = CSV.read("data.csv")
 julia> spanning_tree = emst(data; leaf_size=20)
+```
 
 The output matrix is a three-dimensional matrix, where each row indicates an
 edge.  The first dimension corresponds to the lesser index of the edge; the

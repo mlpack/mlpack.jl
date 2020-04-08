@@ -1,6 +1,6 @@
 export softmax_regression
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const softmax_regressionLibrary = mlpack_jll.libmlpack_julia_softmax_regression
@@ -62,24 +62,28 @@ For example, to train a softmax regression model on the data `dataset` with
 labels `labels` with a maximum of 1000 iterations for training, saving the
 trained model to `sr_model`, the following command can be used: 
 
+```julia
 julia> using CSV
 julia> dataset = CSV.read("dataset.csv")
-julia> labels = CSV.read("labels.csv"; type=Int64)
+julia> labels = CSV.read("labels.csv"; type=Int)
 julia> sr_model, _ = softmax_regression(labels=labels,
             training=dataset)
+```
 
 Then, to use `sr_model` to classify the test points in `test_points`, saving the
 output predictions to `predictions`, the following command can be used:
 
+```julia
 julia> using CSV
 julia> test_points = CSV.read("test_points.csv")
 julia> _, predictions = softmax_regression(input_model=sr_model,
             test=test_points)
+```
 
 # Arguments
 
  - `input_model::unknown_`: File containing existing model (parameters).
- - `labels::Array{Int64, 1}`: A matrix containing labels (0 or 1) for the
+ - `labels::Array{Int, 1}`: A matrix containing labels (0 or 1) for the
       points in the training set (y). The labels must order as a row.
  - `lambda::Float64`: L2-regularization constant  Default value `0.0001`.
       
@@ -94,7 +98,7 @@ julia> _, predictions = softmax_regression(input_model=sr_model,
       used.  Default value `0`.
       
  - `test::Array{Float64, 2}`: Matrix containing test dataset.
- - `test_labels::Array{Int64, 1}`: Matrix containing test labels.
+ - `test_labels::Array{Int, 1}`: Matrix containing test labels.
  - `training::Array{Float64, 2}`: A matrix containing the training set
       (the matrix of predictors, X).
  - `verbose::Bool`: Display informational messages and the full list of
@@ -105,7 +109,7 @@ julia> _, predictions = softmax_regression(input_model=sr_model,
 
  - `output_model::unknown_`: File to save trained softmax regression model
       to.
- - `predictions::Array{Int64, 1}`: Matrix to save predictions for test
+ - `predictions::Array{Int, 1}`: Matrix to save predictions for test
       dataset into.
 
 """

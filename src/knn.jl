@@ -1,6 +1,6 @@
 export knn
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const knnLibrary = mlpack_jll.libmlpack_julia_knn
@@ -42,9 +42,11 @@ For example, the following command will calculate the 5 nearest neighbors of
 each point in `input` and store the distances in `distances` and the neighbors
 in `neighbors`: 
 
+```julia
 julia> using CSV
 julia> input = CSV.read("input.csv")
 julia> distances, neighbors, _ = knn(k=5, reference=input)
+```
 
 The output is organized such that row i and column j in the neighbors output
 matrix corresponds to the index of the point in the reference set which is the
@@ -90,7 +92,7 @@ those two points.
  - `true_distances::Array{Float64, 2}`: Matrix of true distances to
       compute the effective error (average relative error) (it is printed when
       -v is specified).
- - `true_neighbors::Array{Int64, 2}`: Matrix of true neighbors to compute
+ - `true_neighbors::Array{Int, 2}`: Matrix of true neighbors to compute
       the recall (it is printed when -v is specified).
  - `verbose::Bool`: Display informational messages and the full list of
       parameters and timers at the end of execution.  Default value `false`.
@@ -99,7 +101,7 @@ those two points.
 # Return values
 
  - `distances::Array{Float64, 2}`: Matrix to output distances into.
- - `neighbors::Array{Int64, 2}`: Matrix to output neighbors into.
+ - `neighbors::Array{Int, 2}`: Matrix to output neighbors into.
  - `output_model::unknown_`: If specified, the kNN model will be output
       here.
 

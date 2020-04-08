@@ -1,6 +1,6 @@
 export decision_tree
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const decision_treeLibrary = mlpack_jll.libmlpack_julia_decision_tree
@@ -62,26 +62,30 @@ For example, to train a decision tree with a minimum leaf size of 20 on the
 dataset contained in `data` with labels `labels`, saving the output model to
 `tree` and printing the training error, one could call
 
+```julia
 julia> using CSV
-julia> labels = CSV.read("labels.csv"; type=Int64)
+julia> labels = CSV.read("labels.csv"; type=Int)
 julia> tree, _, _ = decision_tree(labels=labels,
             minimum_gain_split=0.001, minimum_leaf_size=20,
             print_training_accuracy=1, training=data)
+```
 
 Then, to use that model to classify points in `test_set` and print the test
 error given the labels `test_labels` using that model, while saving the
 predictions for each point to `predictions`, one could call 
 
+```julia
 julia> using CSV
-julia> test_labels = CSV.read("test_labels.csv"; type=Int64)
+julia> test_labels = CSV.read("test_labels.csv"; type=Int)
 julia> _, predictions, _ = decision_tree(input_model=tree,
             test=test_set, test_labels=test_labels)
+```
 
 # Arguments
 
  - `input_model::unknown_`: Pre-trained decision tree, to be used with
       test points.
- - `labels::Array{Int64, 1}`: Training labels.
+ - `labels::Array{Int, 1}`: Training labels.
  - `maximum_depth::Int`: Maximum depth of the tree (0 means no limit). 
       Default value `0`.
       
@@ -99,7 +103,7 @@ julia> _, predictions, _ = decision_tree(input_model=tree,
       
  - `test::Tuple{Array{Bool, 1}, Array{Float64, 2}}`: Testing dataset (may
       be categorical).
- - `test_labels::Array{Int64, 1}`: Test point labels, if accuracy
+ - `test_labels::Array{Int, 1}`: Test point labels, if accuracy
       calculation is desired.
  - `training::Tuple{Array{Bool, 1}, Array{Float64, 2}}`: Training dataset
       (may be categorical).
@@ -111,7 +115,7 @@ julia> _, predictions, _ = decision_tree(input_model=tree,
 # Return values
 
  - `output_model::unknown_`: Output for trained decision tree.
- - `predictions::Array{Int64, 1}`: Class predictions for each test point.
+ - `predictions::Array{Int, 1}`: Class predictions for each test point.
  - `probabilities::Array{Float64, 2}`: Class probabilities for each test
       point.
 

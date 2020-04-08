@@ -1,6 +1,6 @@
 export sparse_coding
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const sparse_codingLibrary = mlpack_jll.libmlpack_julia_sparse_coding
@@ -62,18 +62,22 @@ As an example, to build a sparse coding model on the dataset `data` using 200
 atoms and an l1-regularization parameter of 0.1, saving the model into `model`,
 use 
 
+```julia
 julia> using CSV
 julia> data = CSV.read("data.csv")
 julia> _, _, model = sparse_coding(atoms=200, lambda1=0.1,
             training=data)
+```
 
 Then, this model could be used to encode a new matrix, `otherdata`, and save the
 output codes to `codes`: 
 
+```julia
 julia> using CSV
 julia> otherdata = CSV.read("otherdata.csv")
 julia> codes, _, _ = sparse_coding(input_model=model,
             test=otherdata)
+```
 
 # Arguments
 

@@ -1,6 +1,6 @@
 export gmm_generate
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const gmm_generateLibrary = mlpack_jll.libmlpack_julia_gmm_generate
@@ -41,7 +41,9 @@ parameter.  Output samples may be saved with the `output` output parameter.
 The following command can be used to generate 100 samples from the pre-trained
 GMM `gmm` and store those generated samples in `samples`:
 
+```julia
 julia> samples = gmm_generate(gmm, 100)
+```
 
 # Arguments
 

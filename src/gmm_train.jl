@@ -1,6 +1,6 @@
 export gmm_train
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const gmm_trainLibrary = mlpack_jll.libmlpack_julia_gmm_train
@@ -75,16 +75,20 @@ As an example, to train a 6-Gaussian GMM on the data in `data` with a maximum of
 100 iterations of EM and 3 trials, saving the trained GMM to `gmm`, the
 following command can be used:
 
+```julia
 julia> using CSV
 julia> data = CSV.read("data.csv")
 julia> gmm = gmm_train(6, data; trials=3)
+```
 
 To re-train that GMM on another set of data `data2`, the following command may
 be used: 
 
+```julia
 julia> using CSV
 julia> data2 = CSV.read("data2.csv")
 julia> new_gmm = gmm_train(6, data2; input_model=gmm)
+```
 
 # Arguments
 

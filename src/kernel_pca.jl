@@ -1,6 +1,6 @@
 export kernel_pca
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const kernel_pcaLibrary = mlpack_jll.libmlpack_julia_kernel_pca
@@ -33,9 +33,11 @@ For the case where a linear kernel is used, this reduces to regular PCA.
 For example, the following command will perform KPCA on the dataset `input`
 using the Gaussian kernel, and saving the transformed data to `transformed`: 
 
+```julia
 julia> using CSV
 julia> input = CSV.read("input.csv")
 julia> transformed = kernel_pca(input, "gaussian")
+```
 
 The kernels that are supported are listed below:
 

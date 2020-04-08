@@ -1,6 +1,6 @@
 export dbscan
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const dbscanLibrary = mlpack_jll.libmlpack_julia_dbscan
@@ -46,9 +46,11 @@ search), and '`naive` will force brute-force range search.
 An example usage to run DBSCAN on the dataset in `input` with a radius of 0.5
 and a minimum cluster size of 5 is given below:
 
+```julia
 julia> using CSV
 julia> input = CSV.read("input.csv")
 julia> _, _ = dbscan(input; epsilon=0.5, min_size=5)
+```
 
 # Arguments
 
@@ -77,7 +79,7 @@ julia> _, _ = dbscan(input; epsilon=0.5, min_size=5)
 
 # Return values
 
- - `assignments::Array{Int64, 1}`: Output matrix for assignments of each
+ - `assignments::Array{Int, 1}`: Output matrix for assignments of each
       point.
  - `centroids::Array{Float64, 2}`: Matrix to save output centroids to.
 

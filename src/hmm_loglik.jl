@@ -1,6 +1,6 @@
 export hmm_loglik
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const hmm_loglikLibrary = mlpack_jll.libmlpack_julia_hmm_loglik
@@ -40,9 +40,11 @@ with the `input` parameter.  The computed log-likelihood is given as output.
 For example, to compute the log-likelihood of the sequence `seq` with the
 pre-trained HMM `hmm`, the following command may be used: 
 
+```julia
 julia> using CSV
 julia> seq = CSV.read("seq.csv")
 julia> _ = hmm_loglik(seq, hmm)
+```
 
 # Arguments
 

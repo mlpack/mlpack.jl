@@ -1,6 +1,6 @@
 export lmnn
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const lmnnLibrary = mlpack_jll.libmlpack_julia_lmnn
@@ -90,19 +90,23 @@ Example - Let's say we want to learn distance on iris dataset with number of
 targets as 3 using BigBatch_SGD optimizer. A simple call for the same will look
 like: 
 
+```julia
 julia> using CSV
 julia> iris = CSV.read("iris.csv")
-julia> iris_labels = CSV.read("iris_labels.csv"; type=Int64)
+julia> iris_labels = CSV.read("iris_labels.csv"; type=Int)
 julia> _, output, _ = mlpack_lmnn(iris; k=3, labels=iris_labels,
             optimizer="bbsgd")
+```
 
 An another program call making use of range & regularization parameter with
 dataset having labels as last column can be made as: 
 
+```julia
 julia> using CSV
 julia> letter_recognition = CSV.read("letter_recognition.csv")
 julia> _, output, _ = mlpack_lmnn(letter_recognition; k=5, range=10,
             regularization=0.4)
+```
 
 # Arguments
 
@@ -118,7 +122,7 @@ julia> _, output, _ = mlpack_lmnn(letter_recognition; k=5, range=10,
  - `k::Int`: Number of target neighbors to use for each datapoint. 
       Default value `1`.
       
- - `labels::Array{Int64, 1}`: Labels for input dataset.
+ - `labels::Array{Int, 1}`: Labels for input dataset.
  - `linear_scan::Bool`: Don't shuffle the order in which data points are
       visited for SGD or mini-batch SGD.  Default value `false`.
       

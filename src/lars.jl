@@ -1,6 +1,6 @@
 export lars
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const larsLibrary = mlpack_jll.libmlpack_julia_lars
@@ -73,19 +73,23 @@ For example, the following command trains a model on the data `data` and
 responses `responses` with lambda1 set to 0.4 and lambda2 set to 0 (so, LASSO is
 being solved), and then the model is saved to `lasso_model`:
 
+```julia
 julia> using CSV
 julia> data = CSV.read("data.csv")
 julia> responses = CSV.read("responses.csv")
 julia> lasso_model, _ = lars(input=data, lambda1=0.4, lambda2=0,
             responses=responses)
+```
 
 The following command uses the `lasso_model` to provide predicted responses for
 the data `test` and save those responses to `test_predictions`: 
 
+```julia
 julia> using CSV
 julia> test = CSV.read("test.csv")
 julia> _, test_predictions = lars(input_model=lasso_model,
             test=test)
+```
 
 # Arguments
 

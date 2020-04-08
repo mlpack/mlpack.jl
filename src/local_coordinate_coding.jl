@@ -1,6 +1,6 @@
 export local_coordinate_coding
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const local_coordinate_codingLibrary = mlpack_jll.libmlpack_julia_local_coordinate_coding
@@ -56,10 +56,12 @@ parameter is specified with the `lambda` parameter.  For example, to run LCC on
 the dataset `data` using 200 atoms and an l1-regularization parameter of 0.1,
 saving the dictionary `dictionary` and the codes into `codes`, use
 
+```julia
 julia> using CSV
 julia> data = CSV.read("data.csv")
 julia> codes, dict, _ = local_coordinate_coding(atoms=200,
             lambda=0.1, training=data)
+```
 
 The maximum number of iterations may be specified with the `max_iterations`
 parameter. Optionally, the input data matrix X can be normalized before coding
@@ -70,10 +72,12 @@ encode new points from the dataset `points` with the previously saved model
 `lcc_model`, saving the new codes to `new_codes`, the following command can be
 used:
 
+```julia
 julia> using CSV
 julia> points = CSV.read("points.csv")
 julia> new_codes, _, _ =
             local_coordinate_coding(input_model=lcc_model, test=points)
+```
 
 # Arguments
 

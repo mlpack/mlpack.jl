@@ -1,6 +1,6 @@
 export kmeans
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const kmeansLibrary = mlpack_jll.libmlpack_julia_kmeans
@@ -64,19 +64,23 @@ k=10 on the dataset `data`, saving the centroids to `centroids` and the
 assignments for each point to `assignments`, the following command could be
 used:
 
+```julia
 julia> using CSV
 julia> data = CSV.read("data.csv")
 julia> centroids, assignments = kmeans(10, data)
+```
 
 To run k-means on that same dataset with initial centroids specified in
 `initial` with a maximum of 500 iterations, storing the output centroids in
 `final` the following command may be used:
 
+```julia
 julia> using CSV
 julia> data = CSV.read("data.csv")
 julia> initial = CSV.read("initial.csv")
 julia> final, _ = kmeans(10, data; initial_centroids=initial,
             max_iterations=500)
+```
 
 # Arguments
 

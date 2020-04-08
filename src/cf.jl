@@ -1,6 +1,6 @@
 export cf
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const cfLibrary = mlpack_jll.libmlpack_julia_cf
@@ -92,18 +92,22 @@ A trained model may be saved to with the `output_model` output parameter.
 To train a CF model on a dataset `training_set` using NMF for decomposition and
 saving the trained model to `model`, one could call: 
 
+```julia
 julia> using CSV
 julia> training_set = CSV.read("training_set.csv")
 julia> _, model = cf(algorithm="NMF", training=training_set)
+```
 
 Then, to use this model to generate recommendations for the list of users in the
 query set `users`, storing 5 recommendations in `recommendations`, one could
 call 
 
+```julia
 julia> using CSV
-julia> users = CSV.read("users.csv"; type=Int64)
+julia> users = CSV.read("users.csv"; type=Int)
 julia> recommendations, _ = cf(input_model=model, query=users,
             recommendations=5)
+```
 
 # Arguments
 
@@ -135,7 +139,7 @@ julia> recommendations, _ = cf(input_model=model, query=users,
  - `normalization::String`: Normalization performed on the ratings. 
       Default value `none`.
       
- - `query::Array{Int64, 2}`: List of query users for which recommendations
+ - `query::Array{Int, 2}`: List of query users for which recommendations
       should be generated.
  - `rank::Int`: Rank of decomposed matrices (if 0, a heuristic is used to
       estimate the rank).  Default value `0`.
@@ -154,7 +158,7 @@ julia> recommendations, _ = cf(input_model=model, query=users,
 
 # Return values
 
- - `output::Array{Int64, 2}`: Matrix that will store output
+ - `output::Array{Int, 2}`: Matrix that will store output
       recommendations.
  - `output_model::unknown_`: Output for trained CF model.
 

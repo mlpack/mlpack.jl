@@ -1,6 +1,6 @@
 export radical
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const radicalLibrary = mlpack_jll.libmlpack_julia_radical
@@ -37,9 +37,11 @@ parameter, and the output unmixing matrix W may be saved with the
 For example, to perform ICA on the matrix `X` with 40 replicates, saving the
 independent components to `ic`, the following command may be used: 
 
+```julia
 julia> using CSV
 julia> X = CSV.read("X.csv")
 julia> ic, _ = radical(X; replicates=40)
+```
 
 # Arguments
 

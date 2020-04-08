@@ -1,6 +1,6 @@
 export approx_kfn
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const approx_kfnLibrary = mlpack_jll.libmlpack_julia_approx_kfn
@@ -69,29 +69,35 @@ as the reference set and `query_set` as the query set using DrusillaSelect,
 storing the furthest neighbor indices to `neighbors` and the furthest neighbor
 distances to `distances`, one could call
 
+```julia
 julia> using CSV
 julia> query_set = CSV.read("query_set.csv")
 julia> reference_set = CSV.read("reference_set.csv")
 julia> distances, neighbors, _ = approx_kfn(algorithm="ds", k=5,
             query=query_set, reference=reference_set)
+```
 
 and to perform approximate all-furthest-neighbors search with k=1 on the set
 `data` storing only the furthest neighbor distances to `distances`, one could
 call
 
+```julia
 julia> using CSV
 julia> reference_set = CSV.read("reference_set.csv")
 julia> distances, _, _ = approx_kfn(k=1, reference=reference_set)
+```
 
 A trained model can be re-used.  If a model has been previously saved to
 `model`, then we may find 3 approximate furthest neighbors on a query set
 `new_query_set` using that model and store the furthest neighbor indices into
 `neighbors` by calling
 
+```julia
 julia> using CSV
 julia> new_query_set = CSV.read("new_query_set.csv")
 julia> _, neighbors, _ = approx_kfn(input_model=model, k=3,
             query=new_query_set)
+```
 
 # Arguments
 
@@ -124,7 +130,7 @@ julia> _, neighbors, _ = approx_kfn(input_model=model, k=3,
 
  - `distances::Array{Float64, 2}`: Matrix to save furthest neighbor
       distances to.
- - `neighbors::Array{Int64, 2}`: Matrix to save neighbor indices to.
+ - `neighbors::Array{Int, 2}`: Matrix to save neighbor indices to.
  - `output_model::unknown_`: File to save output model to.
 
 """

@@ -1,6 +1,6 @@
 export nbc
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const nbcLibrary = mlpack_jll.libmlpack_julia_nbc
@@ -61,18 +61,22 @@ removed in mlpack 4.0.0.  Use `predictions` and `probabilities` instead.
 For example, to train a Naive Bayes classifier on the dataset `data` with labels
 `labels` and save the model to `nbc_model`, the following command may be used:
 
+```julia
 julia> using CSV
 julia> data = CSV.read("data.csv")
-julia> labels = CSV.read("labels.csv"; type=Int64)
+julia> labels = CSV.read("labels.csv"; type=Int)
 julia> _, nbc_model, _, _, _ = nbc(labels=labels, training=data)
+```
 
 Then, to use `nbc_model` to predict the classes of the dataset `test_set` and
 save the predicted classes to `predictions`, the following command may be used:
 
+```julia
 julia> using CSV
 julia> test_set = CSV.read("test_set.csv")
 julia> predictions, _, _, _, _ = nbc(input_model=nbc_model,
             test=test_set)
+```
 
 # Arguments
 
@@ -80,7 +84,7 @@ julia> predictions, _, _, _, _ = nbc(input_model=nbc_model,
       calculated incrementally.  Default value `false`.
       
  - `input_model::unknown_`: Input Naive Bayes model.
- - `labels::Array{Int64, 1}`: A file containing labels for the training
+ - `labels::Array{Int, 1}`: A file containing labels for the training
       set.
  - `test::Array{Float64, 2}`: A matrix containing the test set.
  - `training::Array{Float64, 2}`: A matrix containing the training set.
@@ -90,13 +94,13 @@ julia> predictions, _, _, _, _ = nbc(input_model=nbc_model,
 
 # Return values
 
- - `output::Array{Int64, 1}`: The matrix in which the predicted labels for
+ - `output::Array{Int, 1}`: The matrix in which the predicted labels for
       the test set will be written (deprecated).
  - `output_model::unknown_`: File to save trained Naive Bayes model to.
  - `output_probs::Array{Float64, 2}`: The matrix in which the predicted
       probability of labels for the test set will be written (deprecated).
- - `predictions::Array{Int64, 1}`: The matrix in which the predicted
-      labels for the test set will be written.
+ - `predictions::Array{Int, 1}`: The matrix in which the predicted labels
+      for the test set will be written.
  - `probabilities::Array{Float64, 2}`: The matrix in which the predicted
       probability of labels for the test set will be written.
 

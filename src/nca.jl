@@ -1,6 +1,6 @@
 export nca
 
-using mlpack.util.cli
+using mlpack._Internal.cli
 
 import mlpack_jll
 const ncaLibrary = mlpack_jll.libmlpack_julia_nca
@@ -82,7 +82,7 @@ By default, the SGD optimizer is used.
       
  - `batch_size::Int`: Batch size for mini-batch SGD.  Default value `50`.
       
- - `labels::Array{Int64, 1}`: Labels for input dataset.
+ - `labels::Array{Int, 1}`: Labels for input dataset.
  - `linear_scan::Bool`: Don't shuffle the order in which data points are
       visited for SGD or mini-batch SGD.  Default value `false`.
       
