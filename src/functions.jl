@@ -1,6 +1,5 @@
 # This file imports all of the mlpack functions into the mlpack module.
 
-test_julia_binding = _Internal.test_julia_binding
 adaboost = _Internal.adaboost
 approx_kfn = _Internal.approx_kfn
 cf = _Internal.cf
