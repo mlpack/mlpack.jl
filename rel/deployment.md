@@ -35,7 +35,7 @@ done
 rm -f src/test_julia_binding.jl
 grep -v 'include("test_julia_binding.jl")' src/mlpack.jl > src/mlpack-tmp.jl
 mv src/mlpack-tmp.jl src/mlpack.jl
-grep -v 'test_julia_binding = util.test_julia_binding' src/functions.jl > src/functions-tmp.jl
+grep -v 'test_julia_binding = _Internal.test_julia_binding' src/functions.jl > src/functions-tmp.jl
 mv src/functions-tmp.jl src/functions.jl
 ```
 
