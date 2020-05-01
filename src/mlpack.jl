@@ -17,6 +17,9 @@ functionality can be used to access the documentation that way.
 """
 module mlpack
 
+# Include any types of models.
+include("types.jl")
+
 """
     mlpack._Internal
 
@@ -49,6 +52,7 @@ include("kernel_pca.jl")
 include("kmeans.jl")
 include("lars.jl")
 include("linear_regression.jl")
+include("linear_svm.jl")
 include("lmnn.jl")
 include("local_coordinate_coding.jl")
 include("logistic_regression.jl")
@@ -74,4 +78,5 @@ include("sparse_coding.jl")
 
 end
 include("functions.jl")
+include("serialization.jl")
 end

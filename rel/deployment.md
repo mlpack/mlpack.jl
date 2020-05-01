@@ -39,11 +39,17 @@ grep -v 'test_julia_binding = _Internal.test_julia_binding' src/functions.jl > s
 mv src/functions-tmp.jl src/functions.jl
 ```
 
- 9. Add the Julia dependency information to `Project.toml`:
+ 9. Manually remove `GaussianKernel` from `src/types.jl`. (TODO: automate!)
+
+ 10. Manually remove the `GaussianKernel` serialization from
+     `src/serialization.jl` (TODO: automate!)
+
+ 11. Add the Julia dependency information to `Project.toml`:
 
 ```
 [compat]
-julia = "= 1.3"
+julia = "1.3"
+mlpack_jll = "x.y.z"
 ```
 
- 10. Commit any changed files and any added files in `src/`.
+ 12. Commit any changed files and any added files in `src/`.

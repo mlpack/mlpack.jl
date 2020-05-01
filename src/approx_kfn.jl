@@ -1,5 +1,7 @@
 export approx_kfn
 
+import ..ApproxKFNModel
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module approx_kfn_internal
   import ..approx_kfnLibrary
 
-" Get the value of a model pointer parameter of type ApproxKFNModel."
-function CLIGetParamApproxKFNModelPtr(paramName::String)
-  return ccall((:CLI_GetParamApproxKFNModelPtr, approx_kfnLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...ApproxKFNModel
+
+# Get the value of a model pointer parameter of type ApproxKFNModel.
+function CLIGetParamApproxKFNModel(paramName::String)::ApproxKFNModel
+  ApproxKFNModel(ccall((:CLI_GetParamApproxKFNModelPtr, approx_kfnLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type ApproxKFNModel."
-function CLISetParamApproxKFNModelPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamApproxKFNModelPtr, approx_kfnLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type ApproxKFNModel.
+function CLISetParamApproxKFNModel(paramName::String, model::ApproxKFNModel)
+  ccall((:CLI_SetParamApproxKFNModelPtr, approx_kfnLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeApproxKFNModel(stream::IO, model::ApproxKFNModel)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeApproxKFNModelPtr, approx_kfnLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeApproxKFNModel(stream::IO)::ApproxKFNModel
+  buffer = read(stream)
+  ApproxKFNModel(ccall((:DeserializeApproxKFNModelPtr, approx_kfnLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -138,7 +154,7 @@ function approx_kfn(;
                     algorithm::Union{String, Missing} = missing,
                     calculate_error::Union{Bool, Missing} = missing,
                     exact_distances = missing,
-                    input_model::Union{Ptr{Nothing}, Missing} = missing,
+                    input_model::Union{ApproxKFNModel, Missing} = missing,
                     k::Union{Int, Missing} = missing,
                     num_projections::Union{Int, Missing} = missing,
                     num_tables::Union{Int, Missing} = missing,
@@ -162,7 +178,7 @@ function approx_kfn(;
     CLISetParamMat("exact_distances", exact_distances, points_are_rows)
   end
   if !ismissing(input_model)
-    approx_kfn_internal.CLISetParamApproxKFNModelPtr("input_model", convert(Ptr{Nothing}, input_model))
+    approx_kfn_internal.CLISetParamApproxKFNModel("input_model", convert(ApproxKFNModel, input_model))
   end
   if !ismissing(k)
     CLISetParam("k", convert(Int, k))
@@ -193,5 +209,5 @@ function approx_kfn(;
 
   return CLIGetParamMat("distances", points_are_rows),
          CLIGetParamUMat("neighbors", points_are_rows),
-         approx_kfn_internal.CLIGetParamApproxKFNModelPtr("output_model")
+         approx_kfn_internal.CLIGetParamApproxKFNModel("output_model")
 end

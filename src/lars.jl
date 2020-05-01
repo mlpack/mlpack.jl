@@ -1,5 +1,7 @@
 export lars
 
+import ..LARS
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module lars_internal
   import ..larsLibrary
 
-" Get the value of a model pointer parameter of type LARS."
-function CLIGetParamLARSPtr(paramName::String)
-  return ccall((:CLI_GetParamLARSPtr, larsLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...LARS
+
+# Get the value of a model pointer parameter of type LARS.
+function CLIGetParamLARS(paramName::String)::LARS
+  LARS(ccall((:CLI_GetParamLARSPtr, larsLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type LARS."
-function CLISetParamLARSPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamLARSPtr, larsLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type LARS.
+function CLISetParamLARS(paramName::String, model::LARS)
+  ccall((:CLI_SetParamLARSPtr, larsLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeLARS(stream::IO, model::LARS)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeLARSPtr, larsLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeLARS(stream::IO)::LARS
+  buffer = read(stream)
+  LARS(ccall((:DeserializeLARSPtr, larsLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -121,7 +137,7 @@ julia> _, test_predictions = lars(input_model=lasso_model,
 """
 function lars(;
               input = missing,
-              input_model::Union{Ptr{Nothing}, Missing} = missing,
+              input_model::Union{LARS, Missing} = missing,
               lambda1::Union{Float64, Missing} = missing,
               lambda2::Union{Float64, Missing} = missing,
               responses = missing,
@@ -139,7 +155,7 @@ function lars(;
     CLISetParamMat("input", input, points_are_rows)
   end
   if !ismissing(input_model)
-    lars_internal.CLISetParamLARSPtr("input_model", convert(Ptr{Nothing}, input_model))
+    lars_internal.CLISetParamLARS("input_model", convert(LARS, input_model))
   end
   if !ismissing(lambda1)
     CLISetParam("lambda1", convert(Float64, lambda1))
@@ -167,6 +183,6 @@ function lars(;
   # Call the program.
   lars_mlpackMain()
 
-  return lars_internal.CLIGetParamLARSPtr("output_model"),
+  return lars_internal.CLIGetParamLARS("output_model"),
          CLIGetParamMat("output_predictions", points_are_rows)
 end

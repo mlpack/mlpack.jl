@@ -1,5 +1,7 @@
 export hmm_generate
 
+import ..HMMModel
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module hmm_generate_internal
   import ..hmm_generateLibrary
 
-" Get the value of a model pointer parameter of type HMMModel."
-function CLIGetParamHMMModelPtr(paramName::String)
-  return ccall((:CLI_GetParamHMMModelPtr, hmm_generateLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...HMMModel
+
+# Get the value of a model pointer parameter of type HMMModel.
+function CLIGetParamHMMModel(paramName::String)::HMMModel
+  HMMModel(ccall((:CLI_GetParamHMMModelPtr, hmm_generateLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type HMMModel."
-function CLISetParamHMMModelPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamHMMModelPtr, hmm_generateLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type HMMModel.
+function CLISetParamHMMModel(paramName::String, model::HMMModel)
+  ccall((:CLI_SetParamHMMModelPtr, hmm_generateLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeHMMModel(stream::IO, model::HMMModel)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeHMMModelPtr, hmm_generateLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeHMMModel(stream::IO)::HMMModel
+  buffer = read(stream)
+  HMMModel(ccall((:DeserializeHMMModelPtr, hmm_generateLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -70,7 +86,7 @@ julia> observations, states = hmm_generate(150, hmm)
 
 """
 function hmm_generate(length::Int,
-                      model::Ptr{Nothing};
+                      model::HMMModel;
                       seed::Union{Int, Missing} = missing,
                       start_state::Union{Int, Missing} = missing,
                       verbose::Union{Bool, Missing} = missing,
@@ -82,7 +98,7 @@ function hmm_generate(length::Int,
 
   # Process each input argument before calling mlpackMain().
   CLISetParam("length", length)
-  hmm_generate_internal.CLISetParamHMMModelPtr("model", convert(Ptr{Nothing}, model))
+  hmm_generate_internal.CLISetParamHMMModel("model", convert(HMMModel, model))
   if !ismissing(seed)
     CLISetParam("seed", convert(Int, seed))
   end

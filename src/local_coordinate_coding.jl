@@ -1,5 +1,7 @@
 export local_coordinate_coding
 
+import ..LocalCoordinateCoding
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module local_coordinate_coding_internal
   import ..local_coordinate_codingLibrary
 
-" Get the value of a model pointer parameter of type LocalCoordinateCoding."
-function CLIGetParamLocalCoordinateCodingPtr(paramName::String)
-  return ccall((:CLI_GetParamLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...LocalCoordinateCoding
+
+# Get the value of a model pointer parameter of type LocalCoordinateCoding.
+function CLIGetParamLocalCoordinateCoding(paramName::String)::LocalCoordinateCoding
+  LocalCoordinateCoding(ccall((:CLI_GetParamLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type LocalCoordinateCoding."
-function CLISetParamLocalCoordinateCodingPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type LocalCoordinateCoding.
+function CLISetParamLocalCoordinateCoding(paramName::String, model::LocalCoordinateCoding)
+  ccall((:CLI_SetParamLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeLocalCoordinateCoding(stream::IO, model::LocalCoordinateCoding)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeLocalCoordinateCoding(stream::IO)::LocalCoordinateCoding
+  buffer = read(stream)
+  LocalCoordinateCoding(ccall((:DeserializeLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -116,7 +132,7 @@ julia> new_codes, _, _ =
 function local_coordinate_coding(;
                                  atoms::Union{Int, Missing} = missing,
                                  initial_dictionary = missing,
-                                 input_model::Union{Ptr{Nothing}, Missing} = missing,
+                                 input_model::Union{LocalCoordinateCoding, Missing} = missing,
                                  lambda::Union{Float64, Missing} = missing,
                                  max_iterations::Union{Int, Missing} = missing,
                                  normalize::Union{Bool, Missing} = missing,
@@ -139,7 +155,7 @@ function local_coordinate_coding(;
     CLISetParamMat("initial_dictionary", initial_dictionary, points_are_rows)
   end
   if !ismissing(input_model)
-    local_coordinate_coding_internal.CLISetParamLocalCoordinateCodingPtr("input_model", convert(Ptr{Nothing}, input_model))
+    local_coordinate_coding_internal.CLISetParamLocalCoordinateCoding("input_model", convert(LocalCoordinateCoding, input_model))
   end
   if !ismissing(lambda)
     CLISetParam("lambda", convert(Float64, lambda))
@@ -176,5 +192,5 @@ function local_coordinate_coding(;
 
   return CLIGetParamMat("codes", points_are_rows),
          CLIGetParamMat("dictionary", points_are_rows),
-         local_coordinate_coding_internal.CLIGetParamLocalCoordinateCodingPtr("output_model")
+         local_coordinate_coding_internal.CLIGetParamLocalCoordinateCoding("output_model")
 end

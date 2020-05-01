@@ -1,5 +1,7 @@
 export lsh
 
+import ..LSHSearch
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module lsh_internal
   import ..lshLibrary
 
-" Get the value of a model pointer parameter of type LSHSearch."
-function CLIGetParamLSHSearchPtr(paramName::String)
-  return ccall((:CLI_GetParamLSHSearchPtr, lshLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...LSHSearch
+
+# Get the value of a model pointer parameter of type LSHSearch.
+function CLIGetParamLSHSearch(paramName::String)::LSHSearch
+  LSHSearch(ccall((:CLI_GetParamLSHSearchPtr, lshLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type LSHSearch."
-function CLISetParamLSHSearchPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamLSHSearchPtr, lshLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type LSHSearch.
+function CLISetParamLSHSearch(paramName::String, model::LSHSearch)
+  ccall((:CLI_SetParamLSHSearchPtr, lshLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeLSHSearch(stream::IO, model::LSHSearch)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeLSHSearchPtr, lshLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeLSHSearch(stream::IO)::LSHSearch
+  buffer = read(stream)
+  LSHSearch(ccall((:DeserializeLSHSearchPtr, lshLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -107,7 +123,7 @@ the parameter-specific documentation for more information.
 function lsh(;
              bucket_size::Union{Int, Missing} = missing,
              hash_width::Union{Float64, Missing} = missing,
-             input_model::Union{Ptr{Nothing}, Missing} = missing,
+             input_model::Union{LSHSearch, Missing} = missing,
              k::Union{Int, Missing} = missing,
              num_probes::Union{Int, Missing} = missing,
              projections::Union{Int, Missing} = missing,
@@ -132,7 +148,7 @@ function lsh(;
     CLISetParam("hash_width", convert(Float64, hash_width))
   end
   if !ismissing(input_model)
-    lsh_internal.CLISetParamLSHSearchPtr("input_model", convert(Ptr{Nothing}, input_model))
+    lsh_internal.CLISetParamLSHSearch("input_model", convert(LSHSearch, input_model))
   end
   if !ismissing(k)
     CLISetParam("k", convert(Int, k))
@@ -175,5 +191,5 @@ function lsh(;
 
   return CLIGetParamMat("distances", points_are_rows),
          CLIGetParamUMat("neighbors", points_are_rows),
-         lsh_internal.CLIGetParamLSHSearchPtr("output_model")
+         lsh_internal.CLIGetParamLSHSearch("output_model")
 end

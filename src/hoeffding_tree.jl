@@ -1,5 +1,7 @@
 export hoeffding_tree
 
+import ..HoeffdingTreeModel
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module hoeffding_tree_internal
   import ..hoeffding_treeLibrary
 
-" Get the value of a model pointer parameter of type HoeffdingTreeModel."
-function CLIGetParamHoeffdingTreeModelPtr(paramName::String)
-  return ccall((:CLI_GetParamHoeffdingTreeModelPtr, hoeffding_treeLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...HoeffdingTreeModel
+
+# Get the value of a model pointer parameter of type HoeffdingTreeModel.
+function CLIGetParamHoeffdingTreeModel(paramName::String)::HoeffdingTreeModel
+  HoeffdingTreeModel(ccall((:CLI_GetParamHoeffdingTreeModelPtr, hoeffding_treeLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type HoeffdingTreeModel."
-function CLISetParamHoeffdingTreeModelPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamHoeffdingTreeModelPtr, hoeffding_treeLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type HoeffdingTreeModel.
+function CLISetParamHoeffdingTreeModel(paramName::String, model::HoeffdingTreeModel)
+  ccall((:CLI_SetParamHoeffdingTreeModelPtr, hoeffding_treeLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeHoeffdingTreeModel(stream::IO, model::HoeffdingTreeModel)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeHoeffdingTreeModelPtr, hoeffding_treeLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeHoeffdingTreeModel(stream::IO)::HoeffdingTreeModel
+  buffer = read(stream)
+  HoeffdingTreeModel(ccall((:DeserializeHoeffdingTreeModelPtr, hoeffding_treeLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -131,7 +147,7 @@ function hoeffding_tree(;
                         bins::Union{Int, Missing} = missing,
                         confidence::Union{Float64, Missing} = missing,
                         info_gain::Union{Bool, Missing} = missing,
-                        input_model::Union{Ptr{Nothing}, Missing} = missing,
+                        input_model::Union{HoeffdingTreeModel, Missing} = missing,
                         labels = missing,
                         max_samples::Union{Int, Missing} = missing,
                         min_samples::Union{Int, Missing} = missing,
@@ -162,7 +178,7 @@ function hoeffding_tree(;
     CLISetParam("info_gain", convert(Bool, info_gain))
   end
   if !ismissing(input_model)
-    hoeffding_tree_internal.CLISetParamHoeffdingTreeModelPtr("input_model", convert(Ptr{Nothing}, input_model))
+    hoeffding_tree_internal.CLISetParamHoeffdingTreeModel("input_model", convert(HoeffdingTreeModel, input_model))
   end
   if !ismissing(labels)
     CLISetParamURow("labels", labels)
@@ -203,7 +219,7 @@ function hoeffding_tree(;
   # Call the program.
   hoeffding_tree_mlpackMain()
 
-  return hoeffding_tree_internal.CLIGetParamHoeffdingTreeModelPtr("output_model"),
+  return hoeffding_tree_internal.CLIGetParamHoeffdingTreeModel("output_model"),
          CLIGetParamURow("predictions"),
          CLIGetParamMat("probabilities", points_are_rows)
 end

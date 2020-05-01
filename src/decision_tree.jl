@@ -1,5 +1,7 @@
 export decision_tree
 
+import ..DecisionTreeModel
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module decision_tree_internal
   import ..decision_treeLibrary
 
-" Get the value of a model pointer parameter of type DecisionTreeModel."
-function CLIGetParamDecisionTreeModelPtr(paramName::String)
-  return ccall((:CLI_GetParamDecisionTreeModelPtr, decision_treeLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...DecisionTreeModel
+
+# Get the value of a model pointer parameter of type DecisionTreeModel.
+function CLIGetParamDecisionTreeModel(paramName::String)::DecisionTreeModel
+  DecisionTreeModel(ccall((:CLI_GetParamDecisionTreeModelPtr, decision_treeLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type DecisionTreeModel."
-function CLISetParamDecisionTreeModelPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamDecisionTreeModelPtr, decision_treeLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type DecisionTreeModel.
+function CLISetParamDecisionTreeModel(paramName::String, model::DecisionTreeModel)
+  ccall((:CLI_SetParamDecisionTreeModelPtr, decision_treeLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeDecisionTreeModel(stream::IO, model::DecisionTreeModel)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeDecisionTreeModelPtr, decision_treeLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeDecisionTreeModel(stream::IO)::DecisionTreeModel
+  buffer = read(stream)
+  DecisionTreeModel(ccall((:DeserializeDecisionTreeModelPtr, decision_treeLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -121,7 +137,7 @@ julia> _, predictions, _ = decision_tree(input_model=tree,
 
 """
 function decision_tree(;
-                       input_model::Union{Ptr{Nothing}, Missing} = missing,
+                       input_model::Union{DecisionTreeModel, Missing} = missing,
                        labels = missing,
                        maximum_depth::Union{Int, Missing} = missing,
                        minimum_gain_split::Union{Float64, Missing} = missing,
@@ -141,7 +157,7 @@ function decision_tree(;
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(input_model)
-    decision_tree_internal.CLISetParamDecisionTreeModelPtr("input_model", convert(Ptr{Nothing}, input_model))
+    decision_tree_internal.CLISetParamDecisionTreeModel("input_model", convert(DecisionTreeModel, input_model))
   end
   if !ismissing(labels)
     CLISetParamURow("labels", labels)
@@ -185,7 +201,7 @@ function decision_tree(;
   # Call the program.
   decision_tree_mlpackMain()
 
-  return decision_tree_internal.CLIGetParamDecisionTreeModelPtr("output_model"),
+  return decision_tree_internal.CLIGetParamDecisionTreeModel("output_model"),
          CLIGetParamURow("predictions"),
          CLIGetParamMat("probabilities", points_are_rows)
 end

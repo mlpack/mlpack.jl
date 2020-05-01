@@ -21,6 +21,7 @@ kernel_pca = _Internal.kernel_pca
 kmeans = _Internal.kmeans
 lars = _Internal.lars
 linear_regression = _Internal.linear_regression
+linear_svm = _Internal.linear_svm
 lmnn = _Internal.lmnn
 local_coordinate_coding = _Internal.local_coordinate_coding
 logistic_regression = _Internal.logistic_regression

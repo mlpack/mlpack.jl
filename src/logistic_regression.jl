@@ -1,5 +1,7 @@
 export logistic_regression
 
+import ..LogisticRegression
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module logistic_regression_internal
   import ..logistic_regressionLibrary
 
-" Get the value of a model pointer parameter of type LogisticRegression."
-function CLIGetParamLogisticRegressionPtr(paramName::String)
-  return ccall((:CLI_GetParamLogisticRegressionPtr, logistic_regressionLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...LogisticRegression
+
+# Get the value of a model pointer parameter of type LogisticRegression.
+function CLIGetParamLogisticRegression(paramName::String)::LogisticRegression
+  LogisticRegression(ccall((:CLI_GetParamLogisticRegressionPtr, logistic_regressionLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type LogisticRegression."
-function CLISetParamLogisticRegressionPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamLogisticRegressionPtr, logistic_regressionLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type LogisticRegression.
+function CLISetParamLogisticRegression(paramName::String, model::LogisticRegression)
+  ccall((:CLI_SetParamLogisticRegressionPtr, logistic_regressionLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeLogisticRegression(stream::IO, model::LogisticRegression)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeLogisticRegressionPtr, logistic_regressionLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeLogisticRegression(stream::IO)::LogisticRegression
+  buffer = read(stream)
+  LogisticRegression(ccall((:DeserializeLogisticRegressionPtr, logistic_regressionLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -159,7 +175,7 @@ julia> predictions, _, _, _, _ =
 function logistic_regression(;
                              batch_size::Union{Int, Missing} = missing,
                              decision_boundary::Union{Float64, Missing} = missing,
-                             input_model::Union{Ptr{Nothing}, Missing} = missing,
+                             input_model::Union{LogisticRegression, Missing} = missing,
                              labels = missing,
                              lambda::Union{Float64, Missing} = missing,
                              max_iterations::Union{Int, Missing} = missing,
@@ -183,7 +199,7 @@ function logistic_regression(;
     CLISetParam("decision_boundary", convert(Float64, decision_boundary))
   end
   if !ismissing(input_model)
-    logistic_regression_internal.CLISetParamLogisticRegressionPtr("input_model", convert(Ptr{Nothing}, input_model))
+    logistic_regression_internal.CLISetParamLogisticRegression("input_model", convert(LogisticRegression, input_model))
   end
   if !ismissing(labels)
     CLISetParamURow("labels", labels)
@@ -224,7 +240,7 @@ function logistic_regression(;
   logistic_regression_mlpackMain()
 
   return CLIGetParamURow("output"),
-         logistic_regression_internal.CLIGetParamLogisticRegressionPtr("output_model"),
+         logistic_regression_internal.CLIGetParamLogisticRegression("output_model"),
          CLIGetParamMat("output_probabilities", points_are_rows),
          CLIGetParamURow("predictions"),
          CLIGetParamMat("probabilities", points_are_rows)

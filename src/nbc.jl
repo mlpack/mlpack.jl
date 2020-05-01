@@ -1,5 +1,7 @@
 export nbc
 
+import ..NBCModel
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module nbc_internal
   import ..nbcLibrary
 
-" Get the value of a model pointer parameter of type NBCModel."
-function CLIGetParamNBCModelPtr(paramName::String)
-  return ccall((:CLI_GetParamNBCModelPtr, nbcLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...NBCModel
+
+# Get the value of a model pointer parameter of type NBCModel.
+function CLIGetParamNBCModel(paramName::String)::NBCModel
+  NBCModel(ccall((:CLI_GetParamNBCModelPtr, nbcLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type NBCModel."
-function CLISetParamNBCModelPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamNBCModelPtr, nbcLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type NBCModel.
+function CLISetParamNBCModel(paramName::String, model::NBCModel)
+  ccall((:CLI_SetParamNBCModelPtr, nbcLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeNBCModel(stream::IO, model::NBCModel)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeNBCModelPtr, nbcLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeNBCModel(stream::IO)::NBCModel
+  buffer = read(stream)
+  NBCModel(ccall((:DeserializeNBCModelPtr, nbcLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -107,7 +123,7 @@ julia> predictions, _, _, _, _ = nbc(input_model=nbc_model,
 """
 function nbc(;
              incremental_variance::Union{Bool, Missing} = missing,
-             input_model::Union{Ptr{Nothing}, Missing} = missing,
+             input_model::Union{NBCModel, Missing} = missing,
              labels = missing,
              test = missing,
              training = missing,
@@ -123,7 +139,7 @@ function nbc(;
     CLISetParam("incremental_variance", convert(Bool, incremental_variance))
   end
   if !ismissing(input_model)
-    nbc_internal.CLISetParamNBCModelPtr("input_model", convert(Ptr{Nothing}, input_model))
+    nbc_internal.CLISetParamNBCModel("input_model", convert(NBCModel, input_model))
   end
   if !ismissing(labels)
     CLISetParamURow("labels", labels)
@@ -149,7 +165,7 @@ function nbc(;
   nbc_mlpackMain()
 
   return CLIGetParamURow("output"),
-         nbc_internal.CLIGetParamNBCModelPtr("output_model"),
+         nbc_internal.CLIGetParamNBCModel("output_model"),
          CLIGetParamMat("output_probs", points_are_rows),
          CLIGetParamURow("predictions"),
          CLIGetParamMat("probabilities", points_are_rows)

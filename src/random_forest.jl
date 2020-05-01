@@ -1,5 +1,7 @@
 export random_forest
 
+import ..RandomForestModel
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module random_forest_internal
   import ..random_forestLibrary
 
-" Get the value of a model pointer parameter of type RandomForestModel."
-function CLIGetParamRandomForestModelPtr(paramName::String)
-  return ccall((:CLI_GetParamRandomForestModelPtr, random_forestLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...RandomForestModel
+
+# Get the value of a model pointer parameter of type RandomForestModel.
+function CLIGetParamRandomForestModel(paramName::String)::RandomForestModel
+  RandomForestModel(ccall((:CLI_GetParamRandomForestModelPtr, random_forestLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type RandomForestModel."
-function CLISetParamRandomForestModelPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamRandomForestModelPtr, random_forestLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type RandomForestModel.
+function CLISetParamRandomForestModel(paramName::String, model::RandomForestModel)
+  ccall((:CLI_SetParamRandomForestModelPtr, random_forestLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeRandomForestModel(stream::IO, model::RandomForestModel)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeRandomForestModelPtr, random_forestLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeRandomForestModel(stream::IO)::RandomForestModel
+  buffer = read(stream)
+  RandomForestModel(ccall((:DeserializeRandomForestModelPtr, random_forestLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -133,7 +149,7 @@ julia> _, predictions, _ = random_forest(input_model=rf_model,
 
 """
 function random_forest(;
-                       input_model::Union{Ptr{Nothing}, Missing} = missing,
+                       input_model::Union{RandomForestModel, Missing} = missing,
                        labels = missing,
                        maximum_depth::Union{Int, Missing} = missing,
                        minimum_gain_split::Union{Float64, Missing} = missing,
@@ -154,7 +170,7 @@ function random_forest(;
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(input_model)
-    random_forest_internal.CLISetParamRandomForestModelPtr("input_model", convert(Ptr{Nothing}, input_model))
+    random_forest_internal.CLISetParamRandomForestModel("input_model", convert(RandomForestModel, input_model))
   end
   if !ismissing(labels)
     CLISetParamURow("labels", labels)
@@ -201,7 +217,7 @@ function random_forest(;
   # Call the program.
   random_forest_mlpackMain()
 
-  return random_forest_internal.CLIGetParamRandomForestModelPtr("output_model"),
+  return random_forest_internal.CLIGetParamRandomForestModel("output_model"),
          CLIGetParamURow("predictions"),
          CLIGetParamMat("probabilities", points_are_rows)
 end

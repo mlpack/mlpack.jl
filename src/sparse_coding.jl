@@ -1,5 +1,7 @@
 export sparse_coding
 
+import ..SparseCoding
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module sparse_coding_internal
   import ..sparse_codingLibrary
 
-" Get the value of a model pointer parameter of type SparseCoding."
-function CLIGetParamSparseCodingPtr(paramName::String)
-  return ccall((:CLI_GetParamSparseCodingPtr, sparse_codingLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...SparseCoding
+
+# Get the value of a model pointer parameter of type SparseCoding.
+function CLIGetParamSparseCoding(paramName::String)::SparseCoding
+  SparseCoding(ccall((:CLI_GetParamSparseCodingPtr, sparse_codingLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type SparseCoding."
-function CLISetParamSparseCodingPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamSparseCodingPtr, sparse_codingLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type SparseCoding.
+function CLISetParamSparseCoding(paramName::String, model::SparseCoding)
+  ccall((:CLI_SetParamSparseCodingPtr, sparse_codingLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeSparseCoding(stream::IO, model::SparseCoding)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeSparseCodingPtr, sparse_codingLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeSparseCoding(stream::IO)::SparseCoding
+  buffer = read(stream)
+  SparseCoding(ccall((:DeserializeSparseCodingPtr, sparse_codingLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -126,7 +142,7 @@ julia> codes, _, _ = sparse_coding(input_model=model,
 function sparse_coding(;
                        atoms::Union{Int, Missing} = missing,
                        initial_dictionary = missing,
-                       input_model::Union{Ptr{Nothing}, Missing} = missing,
+                       input_model::Union{SparseCoding, Missing} = missing,
                        lambda1::Union{Float64, Missing} = missing,
                        lambda2::Union{Float64, Missing} = missing,
                        max_iterations::Union{Int, Missing} = missing,
@@ -151,7 +167,7 @@ function sparse_coding(;
     CLISetParamMat("initial_dictionary", initial_dictionary, points_are_rows)
   end
   if !ismissing(input_model)
-    sparse_coding_internal.CLISetParamSparseCodingPtr("input_model", convert(Ptr{Nothing}, input_model))
+    sparse_coding_internal.CLISetParamSparseCoding("input_model", convert(SparseCoding, input_model))
   end
   if !ismissing(lambda1)
     CLISetParam("lambda1", convert(Float64, lambda1))
@@ -194,5 +210,5 @@ function sparse_coding(;
 
   return CLIGetParamMat("codes", points_are_rows),
          CLIGetParamMat("dictionary", points_are_rows),
-         sparse_coding_internal.CLIGetParamSparseCodingPtr("output_model")
+         sparse_coding_internal.CLIGetParamSparseCoding("output_model")
 end

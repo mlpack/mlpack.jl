@@ -1,5 +1,7 @@
 export det
 
+import ..DTree
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module det_internal
   import ..detLibrary
 
-" Get the value of a model pointer parameter of type DTree."
-function CLIGetParamDTreePtr(paramName::String)
-  return ccall((:CLI_GetParamDTreePtr, detLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...DTree
+
+# Get the value of a model pointer parameter of type DTree.
+function CLIGetParamDTree(paramName::String)::DTree
+  DTree(ccall((:CLI_GetParamDTreePtr, detLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type DTree."
-function CLISetParamDTreePtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamDTreePtr, detLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type DTree.
+function CLISetParamDTree(paramName::String, model::DTree)
+  ccall((:CLI_SetParamDTreePtr, detLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeDTree(stream::IO, model::DTree)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeDTreePtr, detLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeDTree(stream::IO)::DTree
+  buffer = read(stream)
+  DTree(ccall((:DeserializeDTreePtr, detLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -104,7 +120,7 @@ may be saved using the `test_set_estimates` output parameter.
 """
 function det(;
              folds::Union{Int, Missing} = missing,
-             input_model::Union{Ptr{Nothing}, Missing} = missing,
+             input_model::Union{DTree, Missing} = missing,
              max_leaf_size::Union{Int, Missing} = missing,
              min_leaf_size::Union{Int, Missing} = missing,
              path_format::Union{String, Missing} = missing,
@@ -123,7 +139,7 @@ function det(;
     CLISetParam("folds", convert(Int, folds))
   end
   if !ismissing(input_model)
-    det_internal.CLISetParamDTreePtr("input_model", convert(Ptr{Nothing}, input_model))
+    det_internal.CLISetParamDTree("input_model", convert(DTree, input_model))
   end
   if !ismissing(max_leaf_size)
     CLISetParam("max_leaf_size", convert(Int, max_leaf_size))
@@ -158,7 +174,7 @@ function det(;
   # Call the program.
   det_mlpackMain()
 
-  return det_internal.CLIGetParamDTreePtr("output_model"),
+  return det_internal.CLIGetParamDTree("output_model"),
          Base.unsafe_string(CLIGetParamString("tag_counters_file")),
          Base.unsafe_string(CLIGetParamString("tag_file")),
          CLIGetParamMat("test_set_estimates", points_are_rows),

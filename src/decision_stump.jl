@@ -1,5 +1,7 @@
 export decision_stump
 
+import ..DSModel
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module decision_stump_internal
   import ..decision_stumpLibrary
 
-" Get the value of a model pointer parameter of type DSModel."
-function CLIGetParamDSModelPtr(paramName::String)
-  return ccall((:CLI_GetParamDSModelPtr, decision_stumpLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...DSModel
+
+# Get the value of a model pointer parameter of type DSModel.
+function CLIGetParamDSModel(paramName::String)::DSModel
+  DSModel(ccall((:CLI_GetParamDSModelPtr, decision_stumpLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type DSModel."
-function CLISetParamDSModelPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamDSModelPtr, decision_stumpLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type DSModel.
+function CLISetParamDSModel(paramName::String, model::DSModel)
+  ccall((:CLI_SetParamDSModelPtr, decision_stumpLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeDSModel(stream::IO, model::DSModel)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeDSModelPtr, decision_stumpLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeDSModel(stream::IO)::DSModel
+  buffer = read(stream)
+  DSModel(ccall((:DeserializeDSModelPtr, decision_stumpLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -88,7 +104,7 @@ parameter.  That stump may later be re-used in subsequent calls to this program
 """
 function decision_stump(;
                         bucket_size::Union{Int, Missing} = missing,
-                        input_model::Union{Ptr{Nothing}, Missing} = missing,
+                        input_model::Union{DSModel, Missing} = missing,
                         labels = missing,
                         test = missing,
                         training = missing,
@@ -104,7 +120,7 @@ function decision_stump(;
     CLISetParam("bucket_size", convert(Int, bucket_size))
   end
   if !ismissing(input_model)
-    decision_stump_internal.CLISetParamDSModelPtr("input_model", convert(Ptr{Nothing}, input_model))
+    decision_stump_internal.CLISetParamDSModel("input_model", convert(DSModel, input_model))
   end
   if !ismissing(labels)
     CLISetParamURow("labels", labels)
@@ -126,6 +142,6 @@ function decision_stump(;
   # Call the program.
   decision_stump_mlpackMain()
 
-  return decision_stump_internal.CLIGetParamDSModelPtr("output_model"),
+  return decision_stump_internal.CLIGetParamDSModel("output_model"),
          CLIGetParamURow("predictions")
 end

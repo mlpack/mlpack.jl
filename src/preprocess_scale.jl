@@ -1,5 +1,7 @@
 export preprocess_scale
 
+import ..ScalingModel
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module preprocess_scale_internal
   import ..preprocess_scaleLibrary
 
-" Get the value of a model pointer parameter of type ScalingModel."
-function CLIGetParamScalingModelPtr(paramName::String)
-  return ccall((:CLI_GetParamScalingModelPtr, preprocess_scaleLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...ScalingModel
+
+# Get the value of a model pointer parameter of type ScalingModel.
+function CLIGetParamScalingModel(paramName::String)::ScalingModel
+  ScalingModel(ccall((:CLI_GetParamScalingModelPtr, preprocess_scaleLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type ScalingModel."
-function CLISetParamScalingModelPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamScalingModelPtr, preprocess_scaleLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type ScalingModel.
+function CLISetParamScalingModel(paramName::String, model::ScalingModel)
+  ccall((:CLI_SetParamScalingModelPtr, preprocess_scaleLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeScalingModel(stream::IO, model::ScalingModel)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeScalingModelPtr, preprocess_scaleLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeScalingModel(stream::IO)::ScalingModel
+  buffer = read(stream)
+  ScalingModel(ccall((:DeserializeScalingModelPtr, preprocess_scaleLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -120,7 +136,7 @@ julia> X_scaled, _ = preprocess_scale(X; max_value=3, min_value=1,
 """
 function preprocess_scale(input;
                           epsilon::Union{Float64, Missing} = missing,
-                          input_model::Union{Ptr{Nothing}, Missing} = missing,
+                          input_model::Union{ScalingModel, Missing} = missing,
                           inverse_scaling::Union{Bool, Missing} = missing,
                           max_value::Union{Int, Missing} = missing,
                           min_value::Union{Int, Missing} = missing,
@@ -139,7 +155,7 @@ function preprocess_scale(input;
     CLISetParam("epsilon", convert(Float64, epsilon))
   end
   if !ismissing(input_model)
-    preprocess_scale_internal.CLISetParamScalingModelPtr("input_model", convert(Ptr{Nothing}, input_model))
+    preprocess_scale_internal.CLISetParamScalingModel("input_model", convert(ScalingModel, input_model))
   end
   if !ismissing(inverse_scaling)
     CLISetParam("inverse_scaling", convert(Bool, inverse_scaling))
@@ -168,5 +184,5 @@ function preprocess_scale(input;
   preprocess_scale_mlpackMain()
 
   return CLIGetParamMat("output", points_are_rows),
-         preprocess_scale_internal.CLIGetParamScalingModelPtr("output_model")
+         preprocess_scale_internal.CLIGetParamScalingModel("output_model")
 end

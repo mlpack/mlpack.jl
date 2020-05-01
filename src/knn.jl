@@ -1,5 +1,7 @@
 export knn
 
+import ..KNNModel
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module knn_internal
   import ..knnLibrary
 
-" Get the value of a model pointer parameter of type KNNModel."
-function CLIGetParamKNNModelPtr(paramName::String)
-  return ccall((:CLI_GetParamKNNModelPtr, knnLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...KNNModel
+
+# Get the value of a model pointer parameter of type KNNModel.
+function CLIGetParamKNNModel(paramName::String)::KNNModel
+  KNNModel(ccall((:CLI_GetParamKNNModelPtr, knnLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type KNNModel."
-function CLISetParamKNNModelPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamKNNModelPtr, knnLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type KNNModel.
+function CLISetParamKNNModel(paramName::String, model::KNNModel)
+  ccall((:CLI_SetParamKNNModelPtr, knnLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeKNNModel(stream::IO, model::KNNModel)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeKNNModelPtr, knnLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeKNNModel(stream::IO)::KNNModel
+  buffer = read(stream)
+  KNNModel(ccall((:DeserializeKNNModelPtr, knnLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -109,7 +125,7 @@ those two points.
 function knn(;
              algorithm::Union{String, Missing} = missing,
              epsilon::Union{Float64, Missing} = missing,
-             input_model::Union{Ptr{Nothing}, Missing} = missing,
+             input_model::Union{KNNModel, Missing} = missing,
              k::Union{Int, Missing} = missing,
              leaf_size::Union{Int, Missing} = missing,
              query = missing,
@@ -136,7 +152,7 @@ function knn(;
     CLISetParam("epsilon", convert(Float64, epsilon))
   end
   if !ismissing(input_model)
-    knn_internal.CLISetParamKNNModelPtr("input_model", convert(Ptr{Nothing}, input_model))
+    knn_internal.CLISetParamKNNModel("input_model", convert(KNNModel, input_model))
   end
   if !ismissing(k)
     CLISetParam("k", convert(Int, k))
@@ -185,5 +201,5 @@ function knn(;
 
   return CLIGetParamMat("distances", points_are_rows),
          CLIGetParamUMat("neighbors", points_are_rows),
-         knn_internal.CLIGetParamKNNModelPtr("output_model")
+         knn_internal.CLIGetParamKNNModel("output_model")
 end

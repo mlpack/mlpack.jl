@@ -1,5 +1,7 @@
 export linear_regression
 
+import ..LinearRegression
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module linear_regression_internal
   import ..linear_regressionLibrary
 
-" Get the value of a model pointer parameter of type LinearRegression."
-function CLIGetParamLinearRegressionPtr(paramName::String)
-  return ccall((:CLI_GetParamLinearRegressionPtr, linear_regressionLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...LinearRegression
+
+# Get the value of a model pointer parameter of type LinearRegression.
+function CLIGetParamLinearRegression(paramName::String)::LinearRegression
+  LinearRegression(ccall((:CLI_GetParamLinearRegressionPtr, linear_regressionLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type LinearRegression."
-function CLISetParamLinearRegressionPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamLinearRegressionPtr, linear_regressionLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type LinearRegression.
+function CLISetParamLinearRegression(paramName::String, model::LinearRegression)
+  ccall((:CLI_SetParamLinearRegressionPtr, linear_regressionLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeLinearRegression(stream::IO, model::LinearRegression)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeLinearRegressionPtr, linear_regressionLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeLinearRegression(stream::IO)::LinearRegression
+  buffer = read(stream)
+  LinearRegression(ccall((:DeserializeLinearRegressionPtr, linear_regressionLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -100,7 +116,7 @@ julia> _, X_test_responses = linear_regression(input_model=lr_model,
 
 """
 function linear_regression(;
-                           input_model::Union{Ptr{Nothing}, Missing} = missing,
+                           input_model::Union{LinearRegression, Missing} = missing,
                            lambda::Union{Float64, Missing} = missing,
                            test = missing,
                            training = missing,
@@ -114,7 +130,7 @@ function linear_regression(;
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(input_model)
-    linear_regression_internal.CLISetParamLinearRegressionPtr("input_model", convert(Ptr{Nothing}, input_model))
+    linear_regression_internal.CLISetParamLinearRegression("input_model", convert(LinearRegression, input_model))
   end
   if !ismissing(lambda)
     CLISetParam("lambda", convert(Float64, lambda))
@@ -139,6 +155,6 @@ function linear_regression(;
   # Call the program.
   linear_regression_mlpackMain()
 
-  return linear_regression_internal.CLIGetParamLinearRegressionPtr("output_model"),
+  return linear_regression_internal.CLIGetParamLinearRegression("output_model"),
          CLIGetParamRow("output_predictions")
 end

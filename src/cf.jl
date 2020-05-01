@@ -1,5 +1,7 @@
 export cf
 
+import ..CFModel
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module cf_internal
   import ..cfLibrary
 
-" Get the value of a model pointer parameter of type CFModel."
-function CLIGetParamCFModelPtr(paramName::String)
-  return ccall((:CLI_GetParamCFModelPtr, cfLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...CFModel
+
+# Get the value of a model pointer parameter of type CFModel.
+function CLIGetParamCFModel(paramName::String)::CFModel
+  CFModel(ccall((:CLI_GetParamCFModelPtr, cfLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type CFModel."
-function CLISetParamCFModelPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamCFModelPtr, cfLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type CFModel.
+function CLISetParamCFModel(paramName::String, model::CFModel)
+  ccall((:CLI_SetParamCFModelPtr, cfLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeCFModel(stream::IO, model::CFModel)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeCFModelPtr, cfLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeCFModel(stream::IO)::CFModel
+  buffer = read(stream)
+  CFModel(ccall((:DeserializeCFModelPtr, cfLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -166,7 +182,7 @@ julia> recommendations, _ = cf(input_model=model, query=users,
 function cf(;
             algorithm::Union{String, Missing} = missing,
             all_user_recommendations::Union{Bool, Missing} = missing,
-            input_model::Union{Ptr{Nothing}, Missing} = missing,
+            input_model::Union{CFModel, Missing} = missing,
             interpolation::Union{String, Missing} = missing,
             iteration_only_termination::Union{Bool, Missing} = missing,
             max_iterations::Union{Int, Missing} = missing,
@@ -195,7 +211,7 @@ function cf(;
     CLISetParam("all_user_recommendations", convert(Bool, all_user_recommendations))
   end
   if !ismissing(input_model)
-    cf_internal.CLISetParamCFModelPtr("input_model", convert(Ptr{Nothing}, input_model))
+    cf_internal.CLISetParamCFModel("input_model", convert(CFModel, input_model))
   end
   if !ismissing(interpolation)
     CLISetParam("interpolation", convert(String, interpolation))
@@ -248,5 +264,5 @@ function cf(;
   cf_mlpackMain()
 
   return CLIGetParamUMat("output", points_are_rows),
-         cf_internal.CLIGetParamCFModelPtr("output_model")
+         cf_internal.CLIGetParamCFModel("output_model")
 end

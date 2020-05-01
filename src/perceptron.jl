@@ -1,5 +1,7 @@
 export perceptron
 
+import ..PerceptronModel
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module perceptron_internal
   import ..perceptronLibrary
 
-" Get the value of a model pointer parameter of type PerceptronModel."
-function CLIGetParamPerceptronModelPtr(paramName::String)
-  return ccall((:CLI_GetParamPerceptronModelPtr, perceptronLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...PerceptronModel
+
+# Get the value of a model pointer parameter of type PerceptronModel.
+function CLIGetParamPerceptronModel(paramName::String)::PerceptronModel
+  PerceptronModel(ccall((:CLI_GetParamPerceptronModelPtr, perceptronLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type PerceptronModel."
-function CLISetParamPerceptronModelPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamPerceptronModelPtr, perceptronLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type PerceptronModel.
+function CLISetParamPerceptronModel(paramName::String, model::PerceptronModel)
+  ccall((:CLI_SetParamPerceptronModelPtr, perceptronLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializePerceptronModel(stream::IO, model::PerceptronModel)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializePerceptronModelPtr, perceptronLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializePerceptronModel(stream::IO)::PerceptronModel
+  buffer = read(stream)
+  PerceptronModel(ccall((:DeserializePerceptronModelPtr, perceptronLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -115,7 +131,7 @@ error.
 
 """
 function perceptron(;
-                    input_model::Union{Ptr{Nothing}, Missing} = missing,
+                    input_model::Union{PerceptronModel, Missing} = missing,
                     labels = missing,
                     max_iterations::Union{Int, Missing} = missing,
                     test = missing,
@@ -129,7 +145,7 @@ function perceptron(;
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(input_model)
-    perceptron_internal.CLISetParamPerceptronModelPtr("input_model", convert(Ptr{Nothing}, input_model))
+    perceptron_internal.CLISetParamPerceptronModel("input_model", convert(PerceptronModel, input_model))
   end
   if !ismissing(labels)
     CLISetParamURow("labels", labels)
@@ -156,6 +172,6 @@ function perceptron(;
   perceptron_mlpackMain()
 
   return CLIGetParamURow("output"),
-         perceptron_internal.CLIGetParamPerceptronModelPtr("output_model"),
+         perceptron_internal.CLIGetParamPerceptronModel("output_model"),
          CLIGetParamURow("predictions")
 end

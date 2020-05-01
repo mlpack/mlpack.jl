@@ -1,5 +1,7 @@
 export adaboost
 
+import ..AdaBoostModel
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module adaboost_internal
   import ..adaboostLibrary
 
-" Get the value of a model pointer parameter of type AdaBoostModel."
-function CLIGetParamAdaBoostModelPtr(paramName::String)
-  return ccall((:CLI_GetParamAdaBoostModelPtr, adaboostLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...AdaBoostModel
+
+# Get the value of a model pointer parameter of type AdaBoostModel.
+function CLIGetParamAdaBoostModel(paramName::String)::AdaBoostModel
+  AdaBoostModel(ccall((:CLI_GetParamAdaBoostModelPtr, adaboostLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type AdaBoostModel."
-function CLISetParamAdaBoostModelPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamAdaBoostModelPtr, adaboostLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type AdaBoostModel.
+function CLISetParamAdaBoostModel(paramName::String, model::AdaBoostModel)
+  ccall((:CLI_SetParamAdaBoostModelPtr, adaboostLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeAdaBoostModel(stream::IO, model::AdaBoostModel)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeAdaBoostModelPtr, adaboostLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeAdaBoostModel(stream::IO)::AdaBoostModel
+  buffer = read(stream)
+  AdaBoostModel(ccall((:DeserializeAdaBoostModelPtr, adaboostLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -111,7 +127,7 @@ julia> _, _, predictions, _ = adaboost(input_model=model,
 
 """
 function adaboost(;
-                  input_model::Union{Ptr{Nothing}, Missing} = missing,
+                  input_model::Union{AdaBoostModel, Missing} = missing,
                   iterations::Union{Int, Missing} = missing,
                   labels = missing,
                   test = missing,
@@ -127,7 +143,7 @@ function adaboost(;
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(input_model)
-    adaboost_internal.CLISetParamAdaBoostModelPtr("input_model", convert(Ptr{Nothing}, input_model))
+    adaboost_internal.CLISetParamAdaBoostModel("input_model", convert(AdaBoostModel, input_model))
   end
   if !ismissing(iterations)
     CLISetParam("iterations", convert(Int, iterations))
@@ -161,7 +177,7 @@ function adaboost(;
   adaboost_mlpackMain()
 
   return CLIGetParamURow("output"),
-         adaboost_internal.CLIGetParamAdaBoostModelPtr("output_model"),
+         adaboost_internal.CLIGetParamAdaBoostModel("output_model"),
          CLIGetParamURow("predictions"),
          CLIGetParamMat("probabilities", points_are_rows)
 end

@@ -1,5 +1,7 @@
 export softmax_regression
 
+import ..SoftmaxRegression
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module softmax_regression_internal
   import ..softmax_regressionLibrary
 
-" Get the value of a model pointer parameter of type SoftmaxRegression."
-function CLIGetParamSoftmaxRegressionPtr(paramName::String)
-  return ccall((:CLI_GetParamSoftmaxRegressionPtr, softmax_regressionLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...SoftmaxRegression
+
+# Get the value of a model pointer parameter of type SoftmaxRegression.
+function CLIGetParamSoftmaxRegression(paramName::String)::SoftmaxRegression
+  SoftmaxRegression(ccall((:CLI_GetParamSoftmaxRegressionPtr, softmax_regressionLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type SoftmaxRegression."
-function CLISetParamSoftmaxRegressionPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamSoftmaxRegressionPtr, softmax_regressionLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type SoftmaxRegression.
+function CLISetParamSoftmaxRegression(paramName::String, model::SoftmaxRegression)
+  ccall((:CLI_SetParamSoftmaxRegressionPtr, softmax_regressionLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeSoftmaxRegression(stream::IO, model::SoftmaxRegression)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeSoftmaxRegressionPtr, softmax_regressionLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeSoftmaxRegression(stream::IO)::SoftmaxRegression
+  buffer = read(stream)
+  SoftmaxRegression(ccall((:DeserializeSoftmaxRegressionPtr, softmax_regressionLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -114,7 +130,7 @@ julia> _, predictions = softmax_regression(input_model=sr_model,
 
 """
 function softmax_regression(;
-                            input_model::Union{Ptr{Nothing}, Missing} = missing,
+                            input_model::Union{SoftmaxRegression, Missing} = missing,
                             labels = missing,
                             lambda::Union{Float64, Missing} = missing,
                             max_iterations::Union{Int, Missing} = missing,
@@ -132,7 +148,7 @@ function softmax_regression(;
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(input_model)
-    softmax_regression_internal.CLISetParamSoftmaxRegressionPtr("input_model", convert(Ptr{Nothing}, input_model))
+    softmax_regression_internal.CLISetParamSoftmaxRegression("input_model", convert(SoftmaxRegression, input_model))
   end
   if !ismissing(labels)
     CLISetParamURow("labels", labels)
@@ -169,6 +185,6 @@ function softmax_regression(;
   # Call the program.
   softmax_regression_mlpackMain()
 
-  return softmax_regression_internal.CLIGetParamSoftmaxRegressionPtr("output_model"),
+  return softmax_regression_internal.CLIGetParamSoftmaxRegression("output_model"),
          CLIGetParamURow("predictions")
 end

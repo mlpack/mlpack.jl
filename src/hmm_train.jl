@@ -1,5 +1,7 @@
 export hmm_train
 
+import ..HMMModel
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module hmm_train_internal
   import ..hmm_trainLibrary
 
-" Get the value of a model pointer parameter of type HMMModel."
-function CLIGetParamHMMModelPtr(paramName::String)
-  return ccall((:CLI_GetParamHMMModelPtr, hmm_trainLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...HMMModel
+
+# Get the value of a model pointer parameter of type HMMModel.
+function CLIGetParamHMMModel(paramName::String)::HMMModel
+  HMMModel(ccall((:CLI_GetParamHMMModelPtr, hmm_trainLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type HMMModel."
-function CLISetParamHMMModelPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamHMMModelPtr, hmm_trainLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type HMMModel.
+function CLISetParamHMMModel(paramName::String, model::HMMModel)
+  ccall((:CLI_SetParamHMMModelPtr, hmm_trainLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeHMMModel(stream::IO, model::HMMModel)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeHMMModelPtr, hmm_trainLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeHMMModel(stream::IO)::HMMModel
+  buffer = read(stream)
+  HMMModel(ccall((:DeserializeHMMModelPtr, hmm_trainLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -91,7 +107,7 @@ matrix and emission probabilities; this is specifiable with --model_file.
 function hmm_train(input_file::String;
                    batch::Union{Bool, Missing} = missing,
                    gaussians::Union{Int, Missing} = missing,
-                   input_model::Union{Ptr{Nothing}, Missing} = missing,
+                   input_model::Union{HMMModel, Missing} = missing,
                    labels_file::Union{String, Missing} = missing,
                    seed::Union{Int, Missing} = missing,
                    states::Union{Int, Missing} = missing,
@@ -113,7 +129,7 @@ function hmm_train(input_file::String;
     CLISetParam("gaussians", convert(Int, gaussians))
   end
   if !ismissing(input_model)
-    hmm_train_internal.CLISetParamHMMModelPtr("input_model", convert(Ptr{Nothing}, input_model))
+    hmm_train_internal.CLISetParamHMMModel("input_model", convert(HMMModel, input_model))
   end
   if !ismissing(labels_file)
     CLISetParam("labels_file", convert(String, labels_file))
@@ -140,5 +156,5 @@ function hmm_train(input_file::String;
   # Call the program.
   hmm_train_mlpackMain()
 
-  return hmm_train_internal.CLIGetParamHMMModelPtr("output_model")
+  return hmm_train_internal.CLIGetParamHMMModel("output_model")
 end

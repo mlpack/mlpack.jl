@@ -1,5 +1,7 @@
 export fastmks
 
+import ..FastMKSModel
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module fastmks_internal
   import ..fastmksLibrary
 
-" Get the value of a model pointer parameter of type FastMKSModel."
-function CLIGetParamFastMKSModelPtr(paramName::String)
-  return ccall((:CLI_GetParamFastMKSModelPtr, fastmksLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...FastMKSModel
+
+# Get the value of a model pointer parameter of type FastMKSModel.
+function CLIGetParamFastMKSModel(paramName::String)::FastMKSModel
+  FastMKSModel(ccall((:CLI_GetParamFastMKSModelPtr, fastmksLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type FastMKSModel."
-function CLISetParamFastMKSModelPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamFastMKSModelPtr, fastmksLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type FastMKSModel.
+function CLISetParamFastMKSModel(paramName::String, model::FastMKSModel)
+  ccall((:CLI_SetParamFastMKSModelPtr, fastmksLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeFastMKSModel(stream::IO, model::FastMKSModel)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeFastMKSModelPtr, fastmksLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeFastMKSModel(stream::IO)::FastMKSModel
+  buffer = read(stream)
+  FastMKSModel(ccall((:DeserializeFastMKSModelPtr, fastmksLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -108,7 +124,7 @@ function fastmks(;
                  bandwidth::Union{Float64, Missing} = missing,
                  base::Union{Float64, Missing} = missing,
                  degree::Union{Float64, Missing} = missing,
-                 input_model::Union{Ptr{Nothing}, Missing} = missing,
+                 input_model::Union{FastMKSModel, Missing} = missing,
                  k::Union{Int, Missing} = missing,
                  kernel::Union{String, Missing} = missing,
                  naive::Union{Bool, Missing} = missing,
@@ -135,7 +151,7 @@ function fastmks(;
     CLISetParam("degree", convert(Float64, degree))
   end
   if !ismissing(input_model)
-    fastmks_internal.CLISetParamFastMKSModelPtr("input_model", convert(Ptr{Nothing}, input_model))
+    fastmks_internal.CLISetParamFastMKSModel("input_model", convert(FastMKSModel, input_model))
   end
   if !ismissing(k)
     CLISetParam("k", convert(Int, k))
@@ -175,5 +191,5 @@ function fastmks(;
 
   return CLIGetParamUMat("indices", points_are_rows),
          CLIGetParamMat("kernels", points_are_rows),
-         fastmks_internal.CLIGetParamFastMKSModelPtr("output_model")
+         fastmks_internal.CLIGetParamFastMKSModel("output_model")
 end

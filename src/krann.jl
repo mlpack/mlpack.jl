@@ -1,5 +1,7 @@
 export krann
 
+import ..RANNModel
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module krann_internal
   import ..krannLibrary
 
-" Get the value of a model pointer parameter of type RANNModel."
-function CLIGetParamRANNModelPtr(paramName::String)
-  return ccall((:CLI_GetParamRANNModelPtr, krannLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...RANNModel
+
+# Get the value of a model pointer parameter of type RANNModel.
+function CLIGetParamRANNModel(paramName::String)::RANNModel
+  RANNModel(ccall((:CLI_GetParamRANNModelPtr, krannLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type RANNModel."
-function CLISetParamRANNModelPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamRANNModelPtr, krannLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type RANNModel.
+function CLISetParamRANNModel(paramName::String, model::RANNModel)
+  ccall((:CLI_SetParamRANNModelPtr, krannLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeRANNModel(stream::IO, model::RANNModel)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeRANNModelPtr, krannLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeRANNModel(stream::IO)::RANNModel
+  buffer = read(stream)
+  RANNModel(ccall((:DeserializeRANNModelPtr, krannLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -120,7 +136,7 @@ those two points.
 function krann(;
                alpha::Union{Float64, Missing} = missing,
                first_leaf_exact::Union{Bool, Missing} = missing,
-               input_model::Union{Ptr{Nothing}, Missing} = missing,
+               input_model::Union{RANNModel, Missing} = missing,
                k::Union{Int, Missing} = missing,
                leaf_size::Union{Int, Missing} = missing,
                naive::Union{Bool, Missing} = missing,
@@ -148,7 +164,7 @@ function krann(;
     CLISetParam("first_leaf_exact", convert(Bool, first_leaf_exact))
   end
   if !ismissing(input_model)
-    krann_internal.CLISetParamRANNModelPtr("input_model", convert(Ptr{Nothing}, input_model))
+    krann_internal.CLISetParamRANNModel("input_model", convert(RANNModel, input_model))
   end
   if !ismissing(k)
     CLISetParam("k", convert(Int, k))
@@ -200,5 +216,5 @@ function krann(;
 
   return CLIGetParamMat("distances", points_are_rows),
          CLIGetParamUMat("neighbors", points_are_rows),
-         krann_internal.CLIGetParamRANNModelPtr("output_model")
+         krann_internal.CLIGetParamRANNModel("output_model")
 end

@@ -1,5 +1,7 @@
 export kfn
 
+import ..KFNModel
+
 using mlpack._Internal.cli
 
 import mlpack_jll
@@ -18,16 +20,30 @@ end
 module kfn_internal
   import ..kfnLibrary
 
-" Get the value of a model pointer parameter of type KFNModel."
-function CLIGetParamKFNModelPtr(paramName::String)
-  return ccall((:CLI_GetParamKFNModelPtr, kfnLibrary), Ptr{Nothing}, (Cstring,), paramName)
+import ...KFNModel
+
+# Get the value of a model pointer parameter of type KFNModel.
+function CLIGetParamKFNModel(paramName::String)::KFNModel
+  KFNModel(ccall((:CLI_GetParamKFNModelPtr, kfnLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
-" Set the value of a model pointer parameter of type KFNModel."
-function CLISetParamKFNModelPtr(paramName::String, ptr::Ptr{Nothing})
-  ccall((:CLI_SetParamKFNModelPtr, kfnLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, ptr)
+# Set the value of a model pointer parameter of type KFNModel.
+function CLISetParamKFNModel(paramName::String, model::KFNModel)
+  ccall((:CLI_SetParamKFNModelPtr, kfnLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
+# Serialize a model to the given stream.
+function serializeKFNModel(stream::IO, model::KFNModel)
+  buf_len = UInt[0]
+  buf_ptr = ccall((:SerializeKFNModelPtr, kfnLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf)
+end
+# Deserialize a model from the given stream.
+function deserializeKFNModel(stream::IO)::KFNModel
+  buffer = read(stream)
+  KFNModel(ccall((:DeserializeKFNModelPtr, kfnLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+end
 end # module
 
 """
@@ -107,7 +123,7 @@ those two points.
 function kfn(;
              algorithm::Union{String, Missing} = missing,
              epsilon::Union{Float64, Missing} = missing,
-             input_model::Union{Ptr{Nothing}, Missing} = missing,
+             input_model::Union{KFNModel, Missing} = missing,
              k::Union{Int, Missing} = missing,
              leaf_size::Union{Int, Missing} = missing,
              percentage::Union{Float64, Missing} = missing,
@@ -133,7 +149,7 @@ function kfn(;
     CLISetParam("epsilon", convert(Float64, epsilon))
   end
   if !ismissing(input_model)
-    kfn_internal.CLISetParamKFNModelPtr("input_model", convert(Ptr{Nothing}, input_model))
+    kfn_internal.CLISetParamKFNModel("input_model", convert(KFNModel, input_model))
   end
   if !ismissing(k)
     CLISetParam("k", convert(Int, k))
@@ -179,5 +195,5 @@ function kfn(;
 
   return CLIGetParamMat("distances", points_are_rows),
          CLIGetParamUMat("neighbors", points_are_rows),
-         kfn_internal.CLIGetParamKFNModelPtr("output_model")
+         kfn_internal.CLIGetParamKFNModel("output_model")
 end
