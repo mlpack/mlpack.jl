@@ -76,14 +76,15 @@ Note: the following parameter is deprecated and will be removed in mlpack 4.0.0:
 `output`.
 Use `predictions` instead of `output`.
 
-For example, to run AdaBoost on an input dataset `data` with perceptrons as the
-weak learner type, storing the trained model in `model`, one could use the
-following command: 
+For example, to run AdaBoost on an input dataset `data` with labels `labels`and
+perceptrons as the weak learner type, storing the trained model in `model`, one
+could use the following command: 
 
 ```julia
 julia> using CSV
 julia> data = CSV.read("data.csv")
-julia> _, model, _, _ = adaboost(training=data,
+julia> labels = CSV.read("labels.csv"; type=Int)
+julia> _, model, _, _ = adaboost(labels=labels, training=data,
             weak_learner="perceptron")
 ```
 

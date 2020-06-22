@@ -71,6 +71,9 @@ with `query`, and specify algorithm parameters with `num_tables` and
 used (either 'ds'---the default---or 'qdafn')  may be specified with
 `algorithm`.  Also specify the number of neighbors to search for with `k`.
 
+Note that for 'qdafn' in lower dimensions, `num_projections` may need to be set
+to a high value in order to return results for each query point.
+
 If no query set is specified, the reference set will be used as the query set. 
 The `output_model` output parameter may be used to store the built model, and an
 input model may be loaded instead of specifying a reference set with the
