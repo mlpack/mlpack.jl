@@ -2,7 +2,7 @@ export kfn
 
 import ..KFNModel
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const kfnLibrary = mlpack_jll.libmlpack_julia_kfn
@@ -23,13 +23,13 @@ module kfn_internal
 import ...KFNModel
 
 # Get the value of a model pointer parameter of type KFNModel.
-function CLIGetParamKFNModel(paramName::String)::KFNModel
-  KFNModel(ccall((:CLI_GetParamKFNModelPtr, kfnLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamKFNModel(paramName::String)::KFNModel
+  KFNModel(ccall((:IO_GetParamKFNModelPtr, kfnLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type KFNModel.
-function CLISetParamKFNModel(paramName::String, model::KFNModel)
-  ccall((:CLI_SetParamKFNModelPtr, kfnLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamKFNModel(paramName::String, model::KFNModel)
+  ccall((:IO_SetParamKFNModelPtr, kfnLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -78,7 +78,7 @@ those two points.
       search with given relative error. Must be in the range [0,1).  Default
       value `0`.
       
- - `input_model::unknown_`: Pre-trained kFN model.
+ - `input_model::KFNModel`: Pre-trained kFN model.
  - `k::Int`: Number of furthest neighbors to find.  Default value `0`.
 
  - `leaf_size::Int`: Leaf size for tree building (used for kd-trees, vp
@@ -116,7 +116,7 @@ those two points.
 
  - `distances::Array{Float64, 2}`: Matrix to output distances into.
  - `neighbors::Array{Int, 2}`: Matrix to output neighbors into.
- - `output_model::unknown_`: If specified, the kFN model will be output
+ - `output_model::KFNModel`: If specified, the kFN model will be output
       here.
 
 """
@@ -139,61 +139,61 @@ function kfn(;
   # Force the symbols to load.
   ccall((:loadSymbols, kfnLibrary), Nothing, ());
 
-  CLIRestoreSettings("k-Furthest-Neighbors Search")
+  IORestoreSettings("k-Furthest-Neighbors Search")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(algorithm)
-    CLISetParam("algorithm", convert(String, algorithm))
+    IOSetParam("algorithm", convert(String, algorithm))
   end
   if !ismissing(epsilon)
-    CLISetParam("epsilon", convert(Float64, epsilon))
+    IOSetParam("epsilon", convert(Float64, epsilon))
   end
   if !ismissing(input_model)
-    kfn_internal.CLISetParamKFNModel("input_model", convert(KFNModel, input_model))
+    kfn_internal.IOSetParamKFNModel("input_model", convert(KFNModel, input_model))
   end
   if !ismissing(k)
-    CLISetParam("k", convert(Int, k))
+    IOSetParam("k", convert(Int, k))
   end
   if !ismissing(leaf_size)
-    CLISetParam("leaf_size", convert(Int, leaf_size))
+    IOSetParam("leaf_size", convert(Int, leaf_size))
   end
   if !ismissing(percentage)
-    CLISetParam("percentage", convert(Float64, percentage))
+    IOSetParam("percentage", convert(Float64, percentage))
   end
   if !ismissing(query)
-    CLISetParamMat("query", query, points_are_rows)
+    IOSetParamMat("query", query, points_are_rows)
   end
   if !ismissing(random_basis)
-    CLISetParam("random_basis", convert(Bool, random_basis))
+    IOSetParam("random_basis", convert(Bool, random_basis))
   end
   if !ismissing(reference)
-    CLISetParamMat("reference", reference, points_are_rows)
+    IOSetParamMat("reference", reference, points_are_rows)
   end
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if !ismissing(tree_type)
-    CLISetParam("tree_type", convert(String, tree_type))
+    IOSetParam("tree_type", convert(String, tree_type))
   end
   if !ismissing(true_distances)
-    CLISetParamMat("true_distances", true_distances, points_are_rows)
+    IOSetParamMat("true_distances", true_distances, points_are_rows)
   end
   if !ismissing(true_neighbors)
-    CLISetParamUMat("true_neighbors", true_neighbors, points_are_rows)
+    IOSetParamUMat("true_neighbors", true_neighbors, points_are_rows)
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("distances")
-  CLISetPassed("neighbors")
-  CLISetPassed("output_model")
+  IOSetPassed("distances")
+  IOSetPassed("neighbors")
+  IOSetPassed("output_model")
   # Call the program.
   kfn_mlpackMain()
 
-  return CLIGetParamMat("distances", points_are_rows),
-         CLIGetParamUMat("neighbors", points_are_rows),
-         kfn_internal.CLIGetParamKFNModel("output_model")
+  return IOGetParamMat("distances", points_are_rows),
+         IOGetParamUMat("neighbors", points_are_rows),
+         kfn_internal.IOGetParamKFNModel("output_model")
 end

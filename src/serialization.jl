@@ -73,6 +73,23 @@ function Serialization.deserialize(s::Serialization.AbstractSerializer,
   deserialize_bin(s.io, ApproxKFNModel)
 end
 
+serialize_bin(stream::IO, model::BayesianLinearRegression) =
+    _Internal.bayesian_linear_regression_internal.serializeBayesianLinearRegression(stream, model)
+deserialize_bin(stream::IO, ::Type{BayesianLinearRegression}) =
+    _Internal.bayesian_linear_regression_internal.deserializeBayesianLinearRegression(stream)
+
+function Serialization.serialize(s::Serialization.AbstractSerializer,
+                                 model::BayesianLinearRegression)
+  Serialization.writetag(s.io, Serialization.OBJECT_TAG)
+  Serialization.serialize(s, BayesianLinearRegression)
+  serialize_bin(s.io, model)
+end
+
+function Serialization.deserialize(s::Serialization.AbstractSerializer,
+                                   ::Type{BayesianLinearRegression})
+  deserialize_bin(s.io, BayesianLinearRegression)
+end
+
 serialize_bin(stream::IO, model::CFModel) =
     _Internal.cf_internal.serializeCFModel(stream, model)
 deserialize_bin(stream::IO, ::Type{CFModel}) =
@@ -207,6 +224,23 @@ end
 function Serialization.deserialize(s::Serialization.AbstractSerializer,
                                    ::Type{HoeffdingTreeModel})
   deserialize_bin(s.io, HoeffdingTreeModel)
+end
+
+serialize_bin(stream::IO, model::KDEModel) =
+    _Internal.kde_internal.serializeKDEModel(stream, model)
+deserialize_bin(stream::IO, ::Type{KDEModel}) =
+    _Internal.kde_internal.deserializeKDEModel(stream)
+
+function Serialization.serialize(s::Serialization.AbstractSerializer,
+                                 model::KDEModel)
+  Serialization.writetag(s.io, Serialization.OBJECT_TAG)
+  Serialization.serialize(s, KDEModel)
+  serialize_bin(s.io, model)
+end
+
+function Serialization.deserialize(s::Serialization.AbstractSerializer,
+                                   ::Type{KDEModel})
+  deserialize_bin(s.io, KDEModel)
 end
 
 serialize_bin(stream::IO, model::LARS) =

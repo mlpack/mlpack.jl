@@ -2,7 +2,7 @@ export approx_kfn
 
 import ..ApproxKFNModel
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const approx_kfnLibrary = mlpack_jll.libmlpack_julia_approx_kfn
@@ -23,13 +23,13 @@ module approx_kfn_internal
 import ...ApproxKFNModel
 
 # Get the value of a model pointer parameter of type ApproxKFNModel.
-function CLIGetParamApproxKFNModel(paramName::String)::ApproxKFNModel
-  ApproxKFNModel(ccall((:CLI_GetParamApproxKFNModelPtr, approx_kfnLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamApproxKFNModel(paramName::String)::ApproxKFNModel
+  ApproxKFNModel(ccall((:IO_GetParamApproxKFNModelPtr, approx_kfnLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type ApproxKFNModel.
-function CLISetParamApproxKFNModel(paramName::String, model::ApproxKFNModel)
-  ccall((:CLI_SetParamApproxKFNModelPtr, approx_kfnLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamApproxKFNModel(paramName::String, model::ApproxKFNModel)
+  ccall((:IO_SetParamApproxKFNModelPtr, approx_kfnLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -129,7 +129,7 @@ julia> _, neighbors, _ = approx_kfn(input_model=model, k=3,
  - `exact_distances::Array{Float64, 2}`: Matrix containing exact distances
       to furthest neighbors; this can be used to avoid explicit calculation when
       --calculate_error is set.
- - `input_model::unknown_`: File containing input model.
+ - `input_model::ApproxKFNModel`: File containing input model.
  - `k::Int`: Number of furthest neighbors to search for.  Default value
       `0`.
       
@@ -150,7 +150,7 @@ julia> _, neighbors, _ = approx_kfn(input_model=model, k=3,
  - `distances::Array{Float64, 2}`: Matrix to save furthest neighbor
       distances to.
  - `neighbors::Array{Int, 2}`: Matrix to save neighbor indices to.
- - `output_model::unknown_`: File to save output model to.
+ - `output_model::ApproxKFNModel`: File to save output model to.
 
 """
 function approx_kfn(;
@@ -168,49 +168,49 @@ function approx_kfn(;
   # Force the symbols to load.
   ccall((:loadSymbols, approx_kfnLibrary), Nothing, ());
 
-  CLIRestoreSettings("Approximate furthest neighbor search")
+  IORestoreSettings("Approximate furthest neighbor search")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(algorithm)
-    CLISetParam("algorithm", convert(String, algorithm))
+    IOSetParam("algorithm", convert(String, algorithm))
   end
   if !ismissing(calculate_error)
-    CLISetParam("calculate_error", convert(Bool, calculate_error))
+    IOSetParam("calculate_error", convert(Bool, calculate_error))
   end
   if !ismissing(exact_distances)
-    CLISetParamMat("exact_distances", exact_distances, points_are_rows)
+    IOSetParamMat("exact_distances", exact_distances, points_are_rows)
   end
   if !ismissing(input_model)
-    approx_kfn_internal.CLISetParamApproxKFNModel("input_model", convert(ApproxKFNModel, input_model))
+    approx_kfn_internal.IOSetParamApproxKFNModel("input_model", convert(ApproxKFNModel, input_model))
   end
   if !ismissing(k)
-    CLISetParam("k", convert(Int, k))
+    IOSetParam("k", convert(Int, k))
   end
   if !ismissing(num_projections)
-    CLISetParam("num_projections", convert(Int, num_projections))
+    IOSetParam("num_projections", convert(Int, num_projections))
   end
   if !ismissing(num_tables)
-    CLISetParam("num_tables", convert(Int, num_tables))
+    IOSetParam("num_tables", convert(Int, num_tables))
   end
   if !ismissing(query)
-    CLISetParamMat("query", query, points_are_rows)
+    IOSetParamMat("query", query, points_are_rows)
   end
   if !ismissing(reference)
-    CLISetParamMat("reference", reference, points_are_rows)
+    IOSetParamMat("reference", reference, points_are_rows)
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("distances")
-  CLISetPassed("neighbors")
-  CLISetPassed("output_model")
+  IOSetPassed("distances")
+  IOSetPassed("neighbors")
+  IOSetPassed("output_model")
   # Call the program.
   approx_kfn_mlpackMain()
 
-  return CLIGetParamMat("distances", points_are_rows),
-         CLIGetParamUMat("neighbors", points_are_rows),
-         approx_kfn_internal.CLIGetParamApproxKFNModel("output_model")
+  return IOGetParamMat("distances", points_are_rows),
+         IOGetParamUMat("neighbors", points_are_rows),
+         approx_kfn_internal.IOGetParamApproxKFNModel("output_model")
 end

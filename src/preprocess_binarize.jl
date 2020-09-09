@@ -1,7 +1,7 @@
 export preprocess_binarize
 
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const preprocess_binarizeLibrary = mlpack_jll.libmlpack_julia_preprocess_binarize
@@ -78,25 +78,25 @@ function preprocess_binarize(input;
   # Force the symbols to load.
   ccall((:loadSymbols, preprocess_binarizeLibrary), Nothing, ());
 
-  CLIRestoreSettings("Binarize Data")
+  IORestoreSettings("Binarize Data")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParamMat("input", input, points_are_rows)
+  IOSetParamMat("input", input, points_are_rows)
   if !ismissing(dimension)
-    CLISetParam("dimension", convert(Int, dimension))
+    IOSetParam("dimension", convert(Int, dimension))
   end
   if !ismissing(threshold)
-    CLISetParam("threshold", convert(Float64, threshold))
+    IOSetParam("threshold", convert(Float64, threshold))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output")
+  IOSetPassed("output")
   # Call the program.
   preprocess_binarize_mlpackMain()
 
-  return CLIGetParamMat("output", points_are_rows)
+  return IOGetParamMat("output", points_are_rows)
 end

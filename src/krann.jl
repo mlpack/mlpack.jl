@@ -2,7 +2,7 @@ export krann
 
 import ..RANNModel
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const krannLibrary = mlpack_jll.libmlpack_julia_krann
@@ -23,13 +23,13 @@ module krann_internal
 import ...RANNModel
 
 # Get the value of a model pointer parameter of type RANNModel.
-function CLIGetParamRANNModel(paramName::String)::RANNModel
-  RANNModel(ccall((:CLI_GetParamRANNModelPtr, krannLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamRANNModel(paramName::String)::RANNModel
+  RANNModel(ccall((:IO_GetParamRANNModelPtr, krannLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type RANNModel.
-function CLISetParamRANNModel(paramName::String, model::RANNModel)
-  ccall((:CLI_SetParamRANNModelPtr, krannLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamRANNModel(paramName::String, model::RANNModel)
+  ccall((:IO_SetParamRANNModelPtr, krannLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -86,7 +86,7 @@ those two points.
  - `first_leaf_exact::Bool`: The flag to trigger sampling only after
       exactly exploring the first leaf.  Default value `false`.
       
- - `input_model::unknown_`: Pre-trained kNN model.
+ - `input_model::RANNModel`: Pre-trained kNN model.
  - `k::Int`: Number of nearest neighbors to find.  Default value `0`.
 
  - `leaf_size::Int`: Leaf size for tree building (used for kd-trees, UB
@@ -129,7 +129,7 @@ those two points.
 
  - `distances::Array{Float64, 2}`: Matrix to output distances into.
  - `neighbors::Array{Int, 2}`: Matrix to output neighbors into.
- - `output_model::unknown_`: If specified, the kNN model will be output
+ - `output_model::RANNModel`: If specified, the kNN model will be output
       here.
 
 """
@@ -154,67 +154,67 @@ function krann(;
   # Force the symbols to load.
   ccall((:loadSymbols, krannLibrary), Nothing, ());
 
-  CLIRestoreSettings("K-Rank-Approximate-Nearest-Neighbors (kRANN)")
+  IORestoreSettings("K-Rank-Approximate-Nearest-Neighbors (kRANN)")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(alpha)
-    CLISetParam("alpha", convert(Float64, alpha))
+    IOSetParam("alpha", convert(Float64, alpha))
   end
   if !ismissing(first_leaf_exact)
-    CLISetParam("first_leaf_exact", convert(Bool, first_leaf_exact))
+    IOSetParam("first_leaf_exact", convert(Bool, first_leaf_exact))
   end
   if !ismissing(input_model)
-    krann_internal.CLISetParamRANNModel("input_model", convert(RANNModel, input_model))
+    krann_internal.IOSetParamRANNModel("input_model", convert(RANNModel, input_model))
   end
   if !ismissing(k)
-    CLISetParam("k", convert(Int, k))
+    IOSetParam("k", convert(Int, k))
   end
   if !ismissing(leaf_size)
-    CLISetParam("leaf_size", convert(Int, leaf_size))
+    IOSetParam("leaf_size", convert(Int, leaf_size))
   end
   if !ismissing(naive)
-    CLISetParam("naive", convert(Bool, naive))
+    IOSetParam("naive", convert(Bool, naive))
   end
   if !ismissing(query)
-    CLISetParamMat("query", query, points_are_rows)
+    IOSetParamMat("query", query, points_are_rows)
   end
   if !ismissing(random_basis)
-    CLISetParam("random_basis", convert(Bool, random_basis))
+    IOSetParam("random_basis", convert(Bool, random_basis))
   end
   if !ismissing(reference)
-    CLISetParamMat("reference", reference, points_are_rows)
+    IOSetParamMat("reference", reference, points_are_rows)
   end
   if !ismissing(sample_at_leaves)
-    CLISetParam("sample_at_leaves", convert(Bool, sample_at_leaves))
+    IOSetParam("sample_at_leaves", convert(Bool, sample_at_leaves))
   end
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if !ismissing(single_mode)
-    CLISetParam("single_mode", convert(Bool, single_mode))
+    IOSetParam("single_mode", convert(Bool, single_mode))
   end
   if !ismissing(single_sample_limit)
-    CLISetParam("single_sample_limit", convert(Int, single_sample_limit))
+    IOSetParam("single_sample_limit", convert(Int, single_sample_limit))
   end
   if !ismissing(tau)
-    CLISetParam("tau", convert(Float64, tau))
+    IOSetParam("tau", convert(Float64, tau))
   end
   if !ismissing(tree_type)
-    CLISetParam("tree_type", convert(String, tree_type))
+    IOSetParam("tree_type", convert(String, tree_type))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("distances")
-  CLISetPassed("neighbors")
-  CLISetPassed("output_model")
+  IOSetPassed("distances")
+  IOSetPassed("neighbors")
+  IOSetPassed("output_model")
   # Call the program.
   krann_mlpackMain()
 
-  return CLIGetParamMat("distances", points_are_rows),
-         CLIGetParamUMat("neighbors", points_are_rows),
-         krann_internal.CLIGetParamRANNModel("output_model")
+  return IOGetParamMat("distances", points_are_rows),
+         IOGetParamUMat("neighbors", points_are_rows),
+         krann_internal.IOGetParamRANNModel("output_model")
 end

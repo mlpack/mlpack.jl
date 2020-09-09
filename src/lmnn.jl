@@ -1,7 +1,7 @@
 export lmnn
 
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const lmnnLibrary = mlpack_jll.libmlpack_julia_lmnn
@@ -198,74 +198,74 @@ function lmnn(input;
   # Force the symbols to load.
   ccall((:loadSymbols, lmnnLibrary), Nothing, ());
 
-  CLIRestoreSettings("Large Margin Nearest Neighbors (LMNN)")
+  IORestoreSettings("Large Margin Nearest Neighbors (LMNN)")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParamMat("input", input, points_are_rows)
+  IOSetParamMat("input", input, points_are_rows)
   if !ismissing(batch_size)
-    CLISetParam("batch_size", convert(Int, batch_size))
+    IOSetParam("batch_size", convert(Int, batch_size))
   end
   if !ismissing(center)
-    CLISetParam("center", convert(Bool, center))
+    IOSetParam("center", convert(Bool, center))
   end
   if !ismissing(distance)
-    CLISetParamMat("distance", distance, points_are_rows)
+    IOSetParamMat("distance", distance, points_are_rows)
   end
   if !ismissing(k)
-    CLISetParam("k", convert(Int, k))
+    IOSetParam("k", convert(Int, k))
   end
   if !ismissing(labels)
-    CLISetParamURow("labels", labels)
+    IOSetParamURow("labels", labels)
   end
   if !ismissing(linear_scan)
-    CLISetParam("linear_scan", convert(Bool, linear_scan))
+    IOSetParam("linear_scan", convert(Bool, linear_scan))
   end
   if !ismissing(max_iterations)
-    CLISetParam("max_iterations", convert(Int, max_iterations))
+    IOSetParam("max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(normalize)
-    CLISetParam("normalize", convert(Bool, normalize))
+    IOSetParam("normalize", convert(Bool, normalize))
   end
   if !ismissing(optimizer)
-    CLISetParam("optimizer", convert(String, optimizer))
+    IOSetParam("optimizer", convert(String, optimizer))
   end
   if !ismissing(passes)
-    CLISetParam("passes", convert(Int, passes))
+    IOSetParam("passes", convert(Int, passes))
   end
   if !ismissing(print_accuracy)
-    CLISetParam("print_accuracy", convert(Bool, print_accuracy))
+    IOSetParam("print_accuracy", convert(Bool, print_accuracy))
   end
   if !ismissing(range)
-    CLISetParam("range", convert(Int, range))
+    IOSetParam("range", convert(Int, range))
   end
   if !ismissing(rank)
-    CLISetParam("rank", convert(Int, rank))
+    IOSetParam("rank", convert(Int, rank))
   end
   if !ismissing(regularization)
-    CLISetParam("regularization", convert(Float64, regularization))
+    IOSetParam("regularization", convert(Float64, regularization))
   end
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if !ismissing(step_size)
-    CLISetParam("step_size", convert(Float64, step_size))
+    IOSetParam("step_size", convert(Float64, step_size))
   end
   if !ismissing(tolerance)
-    CLISetParam("tolerance", convert(Float64, tolerance))
+    IOSetParam("tolerance", convert(Float64, tolerance))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("centered_data")
-  CLISetPassed("output")
-  CLISetPassed("transformed_data")
+  IOSetPassed("centered_data")
+  IOSetPassed("output")
+  IOSetPassed("transformed_data")
   # Call the program.
   lmnn_mlpackMain()
 
-  return CLIGetParamMat("centered_data", points_are_rows),
-         CLIGetParamMat("output", points_are_rows),
-         CLIGetParamMat("transformed_data", points_are_rows)
+  return IOGetParamMat("centered_data", points_are_rows),
+         IOGetParamMat("output", points_are_rows),
+         IOGetParamMat("transformed_data", points_are_rows)
 end

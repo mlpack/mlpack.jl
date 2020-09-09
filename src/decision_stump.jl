@@ -2,7 +2,7 @@ export decision_stump
 
 import ..DSModel
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const decision_stumpLibrary = mlpack_jll.libmlpack_julia_decision_stump
@@ -23,13 +23,13 @@ module decision_stump_internal
 import ...DSModel
 
 # Get the value of a model pointer parameter of type DSModel.
-function CLIGetParamDSModel(paramName::String)::DSModel
-  DSModel(ccall((:CLI_GetParamDSModelPtr, decision_stumpLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamDSModel(paramName::String)::DSModel
+  DSModel(ccall((:IO_GetParamDSModelPtr, decision_stumpLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type DSModel.
-function CLISetParamDSModel(paramName::String, model::DSModel)
-  ccall((:CLI_SetParamDSModelPtr, decision_stumpLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamDSModel(paramName::String, model::DSModel)
+  ccall((:IO_SetParamDSModelPtr, decision_stumpLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -86,7 +86,7 @@ parameter.  That stump may later be re-used in subsequent calls to this program
  - `bucket_size::Int`: The minimum number of training points in each
       decision stump bucket.  Default value `6`.
       
- - `input_model::unknown_`: Decision stump model to load.
+ - `input_model::DSModel`: Decision stump model to load.
  - `labels::Array{Int, 1}`: Labels for the training set. If not specified,
       the labels are assumed to be the last row of the training data.
  - `test::Array{Float64, 2}`: A dataset to calculate predictions for.
@@ -97,7 +97,7 @@ parameter.  That stump may later be re-used in subsequent calls to this program
 
 # Return values
 
- - `output_model::unknown_`: Output decision stump model to save.
+ - `output_model::DSModel`: Output decision stump model to save.
  - `predictions::Array{Int, 1}`: The output matrix that will hold the
       predicted labels for the test set.
 
@@ -113,35 +113,35 @@ function decision_stump(;
   # Force the symbols to load.
   ccall((:loadSymbols, decision_stumpLibrary), Nothing, ());
 
-  CLIRestoreSettings("Decision Stump")
+  IORestoreSettings("Decision Stump")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(bucket_size)
-    CLISetParam("bucket_size", convert(Int, bucket_size))
+    IOSetParam("bucket_size", convert(Int, bucket_size))
   end
   if !ismissing(input_model)
-    decision_stump_internal.CLISetParamDSModel("input_model", convert(DSModel, input_model))
+    decision_stump_internal.IOSetParamDSModel("input_model", convert(DSModel, input_model))
   end
   if !ismissing(labels)
-    CLISetParamURow("labels", labels)
+    IOSetParamURow("labels", labels)
   end
   if !ismissing(test)
-    CLISetParamMat("test", test, points_are_rows)
+    IOSetParamMat("test", test, points_are_rows)
   end
   if !ismissing(training)
-    CLISetParamMat("training", training, points_are_rows)
+    IOSetParamMat("training", training, points_are_rows)
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output_model")
-  CLISetPassed("predictions")
+  IOSetPassed("output_model")
+  IOSetPassed("predictions")
   # Call the program.
   decision_stump_mlpackMain()
 
-  return decision_stump_internal.CLIGetParamDSModel("output_model"),
-         CLIGetParamURow("predictions")
+  return decision_stump_internal.IOGetParamDSModel("output_model"),
+         IOGetParamURow("predictions")
 end

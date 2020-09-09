@@ -1,7 +1,7 @@
 export kernel_pca
 
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const kernel_pcaLibrary = mlpack_jll.libmlpack_julia_kernel_pca
@@ -30,15 +30,6 @@ the kernel principal components, and optionally reduce the dimensionality by
 ignoring the kernel principal components with the smallest eigenvalues.
 
 For the case where a linear kernel is used, this reduces to regular PCA.
-
-For example, the following command will perform KPCA on the dataset `input`
-using the Gaussian kernel, and saving the transformed data to `transformed`: 
-
-```julia
-julia> using CSV
-julia> input = CSV.read("input.csv")
-julia> transformed = kernel_pca(input, "gaussian")
-```
 
 The kernels that are supported are listed below:
 
@@ -73,6 +64,15 @@ machines", 2001) can be used to calculate the kernel matrix by specifying the
 as basis to reconstruct the kernel matrix; to specify the sampling scheme, the
 `sampling` parameter is used.  The sampling scheme for the Nystroem method can
 be chosen from the following list: 'kmeans', 'random', 'ordered'.
+
+For example, the following command will perform KPCA on the dataset `input`
+using the Gaussian kernel, and saving the transformed data to `transformed`: 
+
+```julia
+julia> using CSV
+julia> input = CSV.read("input.csv")
+julia> transformed = kernel_pca(input, "gaussian")
+```
 
 # Arguments
 
@@ -128,44 +128,44 @@ function kernel_pca(input,
   # Force the symbols to load.
   ccall((:loadSymbols, kernel_pcaLibrary), Nothing, ());
 
-  CLIRestoreSettings("Kernel Principal Components Analysis")
+  IORestoreSettings("Kernel Principal Components Analysis")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParamMat("input", input, points_are_rows)
-  CLISetParam("kernel", kernel)
+  IOSetParamMat("input", input, points_are_rows)
+  IOSetParam("kernel", kernel)
   if !ismissing(bandwidth)
-    CLISetParam("bandwidth", convert(Float64, bandwidth))
+    IOSetParam("bandwidth", convert(Float64, bandwidth))
   end
   if !ismissing(center)
-    CLISetParam("center", convert(Bool, center))
+    IOSetParam("center", convert(Bool, center))
   end
   if !ismissing(degree)
-    CLISetParam("degree", convert(Float64, degree))
+    IOSetParam("degree", convert(Float64, degree))
   end
   if !ismissing(kernel_scale)
-    CLISetParam("kernel_scale", convert(Float64, kernel_scale))
+    IOSetParam("kernel_scale", convert(Float64, kernel_scale))
   end
   if !ismissing(new_dimensionality)
-    CLISetParam("new_dimensionality", convert(Int, new_dimensionality))
+    IOSetParam("new_dimensionality", convert(Int, new_dimensionality))
   end
   if !ismissing(nystroem_method)
-    CLISetParam("nystroem_method", convert(Bool, nystroem_method))
+    IOSetParam("nystroem_method", convert(Bool, nystroem_method))
   end
   if !ismissing(offset)
-    CLISetParam("offset", convert(Float64, offset))
+    IOSetParam("offset", convert(Float64, offset))
   end
   if !ismissing(sampling)
-    CLISetParam("sampling", convert(String, sampling))
+    IOSetParam("sampling", convert(String, sampling))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output")
+  IOSetPassed("output")
   # Call the program.
   kernel_pca_mlpackMain()
 
-  return CLIGetParamMat("output", points_are_rows)
+  return IOGetParamMat("output", points_are_rows)
 end

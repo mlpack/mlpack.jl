@@ -2,7 +2,7 @@ export gmm_probability
 
 import ..GMM
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const gmm_probabilityLibrary = mlpack_jll.libmlpack_julia_gmm_probability
@@ -23,13 +23,13 @@ module gmm_probability_internal
 import ...GMM
 
 # Get the value of a model pointer parameter of type GMM.
-function CLIGetParamGMM(paramName::String)::GMM
-  GMM(ccall((:CLI_GetParamGMMPtr, gmm_probabilityLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamGMM(paramName::String)::GMM
+  GMM(ccall((:IO_GetParamGMMPtr, gmm_probabilityLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type GMM.
-function CLISetParamGMM(paramName::String, model::GMM)
-  ccall((:CLI_SetParamGMMPtr, gmm_probabilityLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamGMM(paramName::String, model::GMM)
+  ccall((:IO_SetParamGMMPtr, gmm_probabilityLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -68,7 +68,7 @@ julia> probs = gmm_probability(points, gmm)
 
  - `input::Array{Float64, 2}`: Input matrix to calculate probabilities
       of.
- - `input_model::unknown_`: Input GMM to use as model.
+ - `input_model::GMM`: Input GMM to use as model.
  - `verbose::Bool`: Display informational messages and the full list of
       parameters and timers at the end of execution.  Default value `false`.
       
@@ -86,20 +86,20 @@ function gmm_probability(input,
   # Force the symbols to load.
   ccall((:loadSymbols, gmm_probabilityLibrary), Nothing, ());
 
-  CLIRestoreSettings("GMM Probability Calculator")
+  IORestoreSettings("GMM Probability Calculator")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParamMat("input", input, points_are_rows)
-  gmm_probability_internal.CLISetParamGMM("input_model", convert(GMM, input_model))
+  IOSetParamMat("input", input, points_are_rows)
+  gmm_probability_internal.IOSetParamGMM("input_model", convert(GMM, input_model))
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output")
+  IOSetPassed("output")
   # Call the program.
   gmm_probability_mlpackMain()
 
-  return CLIGetParamMat("output", points_are_rows)
+  return IOGetParamMat("output", points_are_rows)
 end

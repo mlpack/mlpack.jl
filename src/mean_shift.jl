@@ -1,7 +1,7 @@
 export mean_shift
 
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const mean_shiftLibrary = mlpack_jll.libmlpack_julia_mean_shift
@@ -90,36 +90,36 @@ function mean_shift(input;
   # Force the symbols to load.
   ccall((:loadSymbols, mean_shiftLibrary), Nothing, ());
 
-  CLIRestoreSettings("Mean Shift Clustering")
+  IORestoreSettings("Mean Shift Clustering")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParamMat("input", input, points_are_rows)
+  IOSetParamMat("input", input, points_are_rows)
   if !ismissing(force_convergence)
-    CLISetParam("force_convergence", convert(Bool, force_convergence))
+    IOSetParam("force_convergence", convert(Bool, force_convergence))
   end
   if !ismissing(in_place)
-    CLISetParam("in_place", convert(Bool, in_place))
+    IOSetParam("in_place", convert(Bool, in_place))
   end
   if !ismissing(labels_only)
-    CLISetParam("labels_only", convert(Bool, labels_only))
+    IOSetParam("labels_only", convert(Bool, labels_only))
   end
   if !ismissing(max_iterations)
-    CLISetParam("max_iterations", convert(Int, max_iterations))
+    IOSetParam("max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(radius)
-    CLISetParam("radius", convert(Float64, radius))
+    IOSetParam("radius", convert(Float64, radius))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("centroid")
-  CLISetPassed("output")
+  IOSetPassed("centroid")
+  IOSetPassed("output")
   # Call the program.
   mean_shift_mlpackMain()
 
-  return CLIGetParamMat("centroid", points_are_rows),
-         CLIGetParamMat("output", points_are_rows)
+  return IOGetParamMat("centroid", points_are_rows),
+         IOGetParamMat("output", points_are_rows)
 end

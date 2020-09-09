@@ -1,7 +1,7 @@
 export image_converter
 
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const image_converterLibrary = mlpack_jll.libmlpack_julia_image_converter
@@ -31,7 +31,9 @@ will be automatically detected from the image.
 There are other options too, that can be specified such as `quality`.
 
 You can also provide a dataset and save them as images using `dataset` and
-`save` as an parameter. An example to load an image : 
+`save` as an parameter.
+
+ An example to load an image : 
 
 ```julia
 julia> Y = image_converter(X; channels=3, height=256, width=256)
@@ -84,37 +86,37 @@ function image_converter(input::Vector{String};
   # Force the symbols to load.
   ccall((:loadSymbols, image_converterLibrary), Nothing, ());
 
-  CLIRestoreSettings("Image Converter")
+  IORestoreSettings("Image Converter")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParam("input", input)
+  IOSetParam("input", input)
   if !ismissing(channels)
-    CLISetParam("channels", convert(Int, channels))
+    IOSetParam("channels", convert(Int, channels))
   end
   if !ismissing(dataset)
-    CLISetParamMat("dataset", dataset, points_are_rows)
+    IOSetParamMat("dataset", dataset, points_are_rows)
   end
   if !ismissing(height)
-    CLISetParam("height", convert(Int, height))
+    IOSetParam("height", convert(Int, height))
   end
   if !ismissing(quality)
-    CLISetParam("quality", convert(Int, quality))
+    IOSetParam("quality", convert(Int, quality))
   end
   if !ismissing(save)
-    CLISetParam("save", convert(Bool, save))
+    IOSetParam("save", convert(Bool, save))
   end
   if !ismissing(width)
-    CLISetParam("width", convert(Int, width))
+    IOSetParam("width", convert(Int, width))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output")
+  IOSetPassed("output")
   # Call the program.
   image_converter_mlpackMain()
 
-  return CLIGetParamMat("output", points_are_rows)
+  return IOGetParamMat("output", points_are_rows)
 end

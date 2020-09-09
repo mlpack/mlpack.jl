@@ -2,7 +2,7 @@ export linear_svm
 
 import ..LinearSVMModel
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const linear_svmLibrary = mlpack_jll.libmlpack_julia_linear_svm
@@ -23,13 +23,13 @@ module linear_svm_internal
 import ...LinearSVMModel
 
 # Get the value of a model pointer parameter of type LinearSVMModel.
-function CLIGetParamLinearSVMModel(paramName::String)::LinearSVMModel
-  LinearSVMModel(ccall((:CLI_GetParamLinearSVMModelPtr, linear_svmLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamLinearSVMModel(paramName::String)::LinearSVMModel
+  LinearSVMModel(ccall((:IO_GetParamLinearSVMModelPtr, linear_svmLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type LinearSVMModel.
-function CLISetParamLinearSVMModel(paramName::String, model::LinearSVMModel)
-  ccall((:CLI_SetParamLinearSVMModelPtr, linear_svmLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamLinearSVMModel(paramName::String, model::LinearSVMModel)
+  ccall((:IO_SetParamLinearSVMModelPtr, linear_svmLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -117,7 +117,7 @@ julia> _, predictions, _ = linear_svm(input_model=lsvm_model,
  - `epochs::Int`: Maximum number of full epochs over dataset for psgd 
       Default value `50`.
       
- - `input_model::unknown_`: Existing model (parameters).
+ - `input_model::LinearSVMModel`: Existing model (parameters).
  - `labels::Array{Int, 1}`: A matrix containing labels (0 or 1) for the
       points in the training set (y).
  - `lambda::Float64`: L2-regularization parameter for training.  Default
@@ -158,7 +158,7 @@ julia> _, predictions, _ = linear_svm(input_model=lsvm_model,
 
 # Return values
 
- - `output_model::unknown_`: Output for trained linear svm model.
+ - `output_model::LinearSVMModel`: Output for trained linear svm model.
  - `predictions::Array{Int, 1}`: If test data is specified, this matrix is
       where the predictions for the test set will be saved.
  - `probabilities::Array{Float64, 2}`: If test data is specified, this
@@ -187,70 +187,70 @@ function linear_svm(;
   # Force the symbols to load.
   ccall((:loadSymbols, linear_svmLibrary), Nothing, ());
 
-  CLIRestoreSettings("Linear SVM is an L2-regularized support vector machine.")
+  IORestoreSettings("Linear SVM is an L2-regularized support vector machine.")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(delta)
-    CLISetParam("delta", convert(Float64, delta))
+    IOSetParam("delta", convert(Float64, delta))
   end
   if !ismissing(epochs)
-    CLISetParam("epochs", convert(Int, epochs))
+    IOSetParam("epochs", convert(Int, epochs))
   end
   if !ismissing(input_model)
-    linear_svm_internal.CLISetParamLinearSVMModel("input_model", convert(LinearSVMModel, input_model))
+    linear_svm_internal.IOSetParamLinearSVMModel("input_model", convert(LinearSVMModel, input_model))
   end
   if !ismissing(labels)
-    CLISetParamURow("labels", labels)
+    IOSetParamURow("labels", labels)
   end
   if !ismissing(lambda)
-    CLISetParam("lambda", convert(Float64, lambda))
+    IOSetParam("lambda", convert(Float64, lambda))
   end
   if !ismissing(max_iterations)
-    CLISetParam("max_iterations", convert(Int, max_iterations))
+    IOSetParam("max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(no_intercept)
-    CLISetParam("no_intercept", convert(Bool, no_intercept))
+    IOSetParam("no_intercept", convert(Bool, no_intercept))
   end
   if !ismissing(num_classes)
-    CLISetParam("num_classes", convert(Int, num_classes))
+    IOSetParam("num_classes", convert(Int, num_classes))
   end
   if !ismissing(optimizer)
-    CLISetParam("optimizer", convert(String, optimizer))
+    IOSetParam("optimizer", convert(String, optimizer))
   end
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if !ismissing(shuffle)
-    CLISetParam("shuffle", convert(Bool, shuffle))
+    IOSetParam("shuffle", convert(Bool, shuffle))
   end
   if !ismissing(step_size)
-    CLISetParam("step_size", convert(Float64, step_size))
+    IOSetParam("step_size", convert(Float64, step_size))
   end
   if !ismissing(test)
-    CLISetParamMat("test", test, points_are_rows)
+    IOSetParamMat("test", test, points_are_rows)
   end
   if !ismissing(test_labels)
-    CLISetParamURow("test_labels", test_labels)
+    IOSetParamURow("test_labels", test_labels)
   end
   if !ismissing(tolerance)
-    CLISetParam("tolerance", convert(Float64, tolerance))
+    IOSetParam("tolerance", convert(Float64, tolerance))
   end
   if !ismissing(training)
-    CLISetParamMat("training", training, points_are_rows)
+    IOSetParamMat("training", training, points_are_rows)
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output_model")
-  CLISetPassed("predictions")
-  CLISetPassed("probabilities")
+  IOSetPassed("output_model")
+  IOSetPassed("predictions")
+  IOSetPassed("probabilities")
   # Call the program.
   linear_svm_mlpackMain()
 
-  return linear_svm_internal.CLIGetParamLinearSVMModel("output_model"),
-         CLIGetParamURow("predictions"),
-         CLIGetParamMat("probabilities", points_are_rows)
+  return linear_svm_internal.IOGetParamLinearSVMModel("output_model"),
+         IOGetParamURow("predictions"),
+         IOGetParamMat("probabilities", points_are_rows)
 end

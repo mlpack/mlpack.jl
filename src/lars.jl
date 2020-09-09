@@ -2,7 +2,7 @@ export lars
 
 import ..LARS
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const larsLibrary = mlpack_jll.libmlpack_julia_lars
@@ -23,13 +23,13 @@ module lars_internal
 import ...LARS
 
 # Get the value of a model pointer parameter of type LARS.
-function CLIGetParamLARS(paramName::String)::LARS
-  LARS(ccall((:CLI_GetParamLARSPtr, larsLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamLARS(paramName::String)::LARS
+  LARS(ccall((:IO_GetParamLARSPtr, larsLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type LARS.
-function CLISetParamLARS(paramName::String, model::LARS)
-  ccall((:CLI_SetParamLARSPtr, larsLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamLARS(paramName::String, model::LARS)
+  ccall((:IO_SetParamLARSPtr, larsLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -110,7 +110,7 @@ julia> _, test_predictions = lars(input_model=lasso_model,
 # Arguments
 
  - `input::Array{Float64, 2}`: Matrix of covariates (X).
- - `input_model::unknown_`: Trained LARS model to use.
+ - `input_model::LARS`: Trained LARS model to use.
  - `lambda1::Float64`: Regularization parameter for l1-norm penalty. 
       Default value `0`.
       
@@ -130,7 +130,7 @@ julia> _, test_predictions = lars(input_model=lasso_model,
 
 # Return values
 
- - `output_model::unknown_`: Output LARS model.
+ - `output_model::LARS`: Output LARS model.
  - `output_predictions::Array{Float64, 2}`: If --test_file is specified,
       this file is where the predicted responses will be saved.
 
@@ -148,41 +148,41 @@ function lars(;
   # Force the symbols to load.
   ccall((:loadSymbols, larsLibrary), Nothing, ());
 
-  CLIRestoreSettings("LARS")
+  IORestoreSettings("LARS")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(input)
-    CLISetParamMat("input", input, points_are_rows)
+    IOSetParamMat("input", input, points_are_rows)
   end
   if !ismissing(input_model)
-    lars_internal.CLISetParamLARS("input_model", convert(LARS, input_model))
+    lars_internal.IOSetParamLARS("input_model", convert(LARS, input_model))
   end
   if !ismissing(lambda1)
-    CLISetParam("lambda1", convert(Float64, lambda1))
+    IOSetParam("lambda1", convert(Float64, lambda1))
   end
   if !ismissing(lambda2)
-    CLISetParam("lambda2", convert(Float64, lambda2))
+    IOSetParam("lambda2", convert(Float64, lambda2))
   end
   if !ismissing(responses)
-    CLISetParamMat("responses", responses, points_are_rows)
+    IOSetParamMat("responses", responses, points_are_rows)
   end
   if !ismissing(test)
-    CLISetParamMat("test", test, points_are_rows)
+    IOSetParamMat("test", test, points_are_rows)
   end
   if !ismissing(use_cholesky)
-    CLISetParam("use_cholesky", convert(Bool, use_cholesky))
+    IOSetParam("use_cholesky", convert(Bool, use_cholesky))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output_model")
-  CLISetPassed("output_predictions")
+  IOSetPassed("output_model")
+  IOSetPassed("output_predictions")
   # Call the program.
   lars_mlpackMain()
 
-  return lars_internal.CLIGetParamLARS("output_model"),
-         CLIGetParamMat("output_predictions", points_are_rows)
+  return lars_internal.IOGetParamLARS("output_model"),
+         IOGetParamMat("output_predictions", points_are_rows)
 end

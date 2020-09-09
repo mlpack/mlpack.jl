@@ -1,7 +1,7 @@
 export nca
 
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const ncaLibrary = mlpack_jll.libmlpack_julia_nca
@@ -152,64 +152,64 @@ function nca(input;
   # Force the symbols to load.
   ccall((:loadSymbols, ncaLibrary), Nothing, ());
 
-  CLIRestoreSettings("Neighborhood Components Analysis (NCA)")
+  IORestoreSettings("Neighborhood Components Analysis (NCA)")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParamMat("input", input, points_are_rows)
+  IOSetParamMat("input", input, points_are_rows)
   if !ismissing(armijo_constant)
-    CLISetParam("armijo_constant", convert(Float64, armijo_constant))
+    IOSetParam("armijo_constant", convert(Float64, armijo_constant))
   end
   if !ismissing(batch_size)
-    CLISetParam("batch_size", convert(Int, batch_size))
+    IOSetParam("batch_size", convert(Int, batch_size))
   end
   if !ismissing(labels)
-    CLISetParamURow("labels", labels)
+    IOSetParamURow("labels", labels)
   end
   if !ismissing(linear_scan)
-    CLISetParam("linear_scan", convert(Bool, linear_scan))
+    IOSetParam("linear_scan", convert(Bool, linear_scan))
   end
   if !ismissing(max_iterations)
-    CLISetParam("max_iterations", convert(Int, max_iterations))
+    IOSetParam("max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(max_line_search_trials)
-    CLISetParam("max_line_search_trials", convert(Int, max_line_search_trials))
+    IOSetParam("max_line_search_trials", convert(Int, max_line_search_trials))
   end
   if !ismissing(max_step)
-    CLISetParam("max_step", convert(Float64, max_step))
+    IOSetParam("max_step", convert(Float64, max_step))
   end
   if !ismissing(min_step)
-    CLISetParam("min_step", convert(Float64, min_step))
+    IOSetParam("min_step", convert(Float64, min_step))
   end
   if !ismissing(normalize)
-    CLISetParam("normalize", convert(Bool, normalize))
+    IOSetParam("normalize", convert(Bool, normalize))
   end
   if !ismissing(num_basis)
-    CLISetParam("num_basis", convert(Int, num_basis))
+    IOSetParam("num_basis", convert(Int, num_basis))
   end
   if !ismissing(optimizer)
-    CLISetParam("optimizer", convert(String, optimizer))
+    IOSetParam("optimizer", convert(String, optimizer))
   end
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if !ismissing(step_size)
-    CLISetParam("step_size", convert(Float64, step_size))
+    IOSetParam("step_size", convert(Float64, step_size))
   end
   if !ismissing(tolerance)
-    CLISetParam("tolerance", convert(Float64, tolerance))
+    IOSetParam("tolerance", convert(Float64, tolerance))
   end
   if !ismissing(wolfe)
-    CLISetParam("wolfe", convert(Float64, wolfe))
+    IOSetParam("wolfe", convert(Float64, wolfe))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output")
+  IOSetPassed("output")
   # Call the program.
   nca_mlpackMain()
 
-  return CLIGetParamMat("output", points_are_rows)
+  return IOGetParamMat("output", points_are_rows)
 end

@@ -2,7 +2,7 @@ export fastmks
 
 import ..FastMKSModel
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const fastmksLibrary = mlpack_jll.libmlpack_julia_fastmks
@@ -23,13 +23,13 @@ module fastmks_internal
 import ...FastMKSModel
 
 # Get the value of a model pointer parameter of type FastMKSModel.
-function CLIGetParamFastMKSModel(paramName::String)::FastMKSModel
-  FastMKSModel(ccall((:CLI_GetParamFastMKSModelPtr, fastmksLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamFastMKSModel(paramName::String)::FastMKSModel
+  FastMKSModel(ccall((:IO_GetParamFastMKSModelPtr, fastmksLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type FastMKSModel.
-function CLISetParamFastMKSModel(paramName::String, model::FastMKSModel)
-  ccall((:CLI_SetParamFastMKSModelPtr, fastmksLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamFastMKSModel(paramName::String, model::FastMKSModel)
+  ccall((:IO_SetParamFastMKSModelPtr, fastmksLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -88,7 +88,7 @@ cover tree can be specified with the `base` parameter.
       
  - `degree::Float64`: Degree of polynomial kernel.  Default value `2`.
 
- - `input_model::unknown_`: Input FastMKS model to use.
+ - `input_model::FastMKSModel`: Input FastMKS model to use.
  - `k::Int`: Number of maximum kernels to find.  Default value `0`.
 
  - `kernel::String`: Kernel type to use: 'linear', 'polynomial', 'cosine',
@@ -117,7 +117,7 @@ cover tree can be specified with the `base` parameter.
 
  - `indices::Array{Int, 2}`: Output matrix of indices.
  - `kernels::Array{Float64, 2}`: Output matrix of kernels.
- - `output_model::unknown_`: Output for FastMKS model.
+ - `output_model::FastMKSModel`: Output for FastMKS model.
 
 """
 function fastmks(;
@@ -138,58 +138,58 @@ function fastmks(;
   # Force the symbols to load.
   ccall((:loadSymbols, fastmksLibrary), Nothing, ());
 
-  CLIRestoreSettings("FastMKS (Fast Max-Kernel Search)")
+  IORestoreSettings("FastMKS (Fast Max-Kernel Search)")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(bandwidth)
-    CLISetParam("bandwidth", convert(Float64, bandwidth))
+    IOSetParam("bandwidth", convert(Float64, bandwidth))
   end
   if !ismissing(base)
-    CLISetParam("base", convert(Float64, base))
+    IOSetParam("base", convert(Float64, base))
   end
   if !ismissing(degree)
-    CLISetParam("degree", convert(Float64, degree))
+    IOSetParam("degree", convert(Float64, degree))
   end
   if !ismissing(input_model)
-    fastmks_internal.CLISetParamFastMKSModel("input_model", convert(FastMKSModel, input_model))
+    fastmks_internal.IOSetParamFastMKSModel("input_model", convert(FastMKSModel, input_model))
   end
   if !ismissing(k)
-    CLISetParam("k", convert(Int, k))
+    IOSetParam("k", convert(Int, k))
   end
   if !ismissing(kernel)
-    CLISetParam("kernel", convert(String, kernel))
+    IOSetParam("kernel", convert(String, kernel))
   end
   if !ismissing(naive)
-    CLISetParam("naive", convert(Bool, naive))
+    IOSetParam("naive", convert(Bool, naive))
   end
   if !ismissing(offset)
-    CLISetParam("offset", convert(Float64, offset))
+    IOSetParam("offset", convert(Float64, offset))
   end
   if !ismissing(query)
-    CLISetParamMat("query", query, points_are_rows)
+    IOSetParamMat("query", query, points_are_rows)
   end
   if !ismissing(reference)
-    CLISetParamMat("reference", reference, points_are_rows)
+    IOSetParamMat("reference", reference, points_are_rows)
   end
   if !ismissing(scale)
-    CLISetParam("scale", convert(Float64, scale))
+    IOSetParam("scale", convert(Float64, scale))
   end
   if !ismissing(single)
-    CLISetParam("single", convert(Bool, single))
+    IOSetParam("single", convert(Bool, single))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("indices")
-  CLISetPassed("kernels")
-  CLISetPassed("output_model")
+  IOSetPassed("indices")
+  IOSetPassed("kernels")
+  IOSetPassed("output_model")
   # Call the program.
   fastmks_mlpackMain()
 
-  return CLIGetParamUMat("indices", points_are_rows),
-         CLIGetParamMat("kernels", points_are_rows),
-         fastmks_internal.CLIGetParamFastMKSModel("output_model")
+  return IOGetParamUMat("indices", points_are_rows),
+         IOGetParamMat("kernels", points_are_rows),
+         fastmks_internal.IOGetParamFastMKSModel("output_model")
 end

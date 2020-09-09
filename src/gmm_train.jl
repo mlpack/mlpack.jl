@@ -2,7 +2,7 @@ export gmm_train
 
 import ..GMM
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const gmm_trainLibrary = mlpack_jll.libmlpack_julia_gmm_train
@@ -23,13 +23,13 @@ module gmm_train_internal
 import ...GMM
 
 # Get the value of a model pointer parameter of type GMM.
-function CLIGetParamGMM(paramName::String)::GMM
-  GMM(ccall((:CLI_GetParamGMMPtr, gmm_trainLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamGMM(paramName::String)::GMM
+  GMM(ccall((:IO_GetParamGMMPtr, gmm_trainLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type GMM.
-function CLISetParamGMM(paramName::String, model::GMM)
-  ccall((:CLI_SetParamGMMPtr, gmm_trainLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamGMM(paramName::String, model::GMM)
+  ccall((:IO_SetParamGMMPtr, gmm_trainLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -115,8 +115,7 @@ julia> new_gmm = gmm_train(6, data2; input_model=gmm)
       be diagonal.  This can accelerate training time significantly.  Default
       value `false`.
       
- - `input_model::unknown_`: Initial input GMM model to start training
-      with.
+ - `input_model::GMM`: Initial input GMM model to start training with.
  - `kmeans_max_iterations::Int`: Maximum number of iterations for the
       k-means algorithm (used to initialize EM).  Default value `1000`.
       
@@ -155,7 +154,7 @@ julia> new_gmm = gmm_train(6, data2; input_model=gmm)
 
 # Return values
 
- - `output_model::unknown_`: Output for trained GMM model.
+ - `output_model::GMM`: Output for trained GMM model.
 
 """
 function gmm_train(gaussians::Int,
@@ -177,56 +176,56 @@ function gmm_train(gaussians::Int,
   # Force the symbols to load.
   ccall((:loadSymbols, gmm_trainLibrary), Nothing, ());
 
-  CLIRestoreSettings("Gaussian Mixture Model (GMM) Training")
+  IORestoreSettings("Gaussian Mixture Model (GMM) Training")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParam("gaussians", gaussians)
-  CLISetParamMat("input", input, points_are_rows)
+  IOSetParam("gaussians", gaussians)
+  IOSetParamMat("input", input, points_are_rows)
   if !ismissing(diagonal_covariance)
-    CLISetParam("diagonal_covariance", convert(Bool, diagonal_covariance))
+    IOSetParam("diagonal_covariance", convert(Bool, diagonal_covariance))
   end
   if !ismissing(input_model)
-    gmm_train_internal.CLISetParamGMM("input_model", convert(GMM, input_model))
+    gmm_train_internal.IOSetParamGMM("input_model", convert(GMM, input_model))
   end
   if !ismissing(kmeans_max_iterations)
-    CLISetParam("kmeans_max_iterations", convert(Int, kmeans_max_iterations))
+    IOSetParam("kmeans_max_iterations", convert(Int, kmeans_max_iterations))
   end
   if !ismissing(max_iterations)
-    CLISetParam("max_iterations", convert(Int, max_iterations))
+    IOSetParam("max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(no_force_positive)
-    CLISetParam("no_force_positive", convert(Bool, no_force_positive))
+    IOSetParam("no_force_positive", convert(Bool, no_force_positive))
   end
   if !ismissing(noise)
-    CLISetParam("noise", convert(Float64, noise))
+    IOSetParam("noise", convert(Float64, noise))
   end
   if !ismissing(percentage)
-    CLISetParam("percentage", convert(Float64, percentage))
+    IOSetParam("percentage", convert(Float64, percentage))
   end
   if !ismissing(refined_start)
-    CLISetParam("refined_start", convert(Bool, refined_start))
+    IOSetParam("refined_start", convert(Bool, refined_start))
   end
   if !ismissing(samplings)
-    CLISetParam("samplings", convert(Int, samplings))
+    IOSetParam("samplings", convert(Int, samplings))
   end
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if !ismissing(tolerance)
-    CLISetParam("tolerance", convert(Float64, tolerance))
+    IOSetParam("tolerance", convert(Float64, tolerance))
   end
   if !ismissing(trials)
-    CLISetParam("trials", convert(Int, trials))
+    IOSetParam("trials", convert(Int, trials))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output_model")
+  IOSetPassed("output_model")
   # Call the program.
   gmm_train_mlpackMain()
 
-  return gmm_train_internal.CLIGetParamGMM("output_model")
+  return gmm_train_internal.IOGetParamGMM("output_model")
 end

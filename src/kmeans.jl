@@ -1,7 +1,7 @@
 export kmeans
 
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const kmeansLibrary = mlpack_jll.libmlpack_julia_kmeans
@@ -154,55 +154,55 @@ function kmeans(clusters::Int,
   # Force the symbols to load.
   ccall((:loadSymbols, kmeansLibrary), Nothing, ());
 
-  CLIRestoreSettings("K-Means Clustering")
+  IORestoreSettings("K-Means Clustering")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParam("clusters", clusters)
-  CLISetParamMat("input", input, points_are_rows)
+  IOSetParam("clusters", clusters)
+  IOSetParamMat("input", input, points_are_rows)
   if !ismissing(algorithm)
-    CLISetParam("algorithm", convert(String, algorithm))
+    IOSetParam("algorithm", convert(String, algorithm))
   end
   if !ismissing(allow_empty_clusters)
-    CLISetParam("allow_empty_clusters", convert(Bool, allow_empty_clusters))
+    IOSetParam("allow_empty_clusters", convert(Bool, allow_empty_clusters))
   end
   if !ismissing(in_place)
-    CLISetParam("in_place", convert(Bool, in_place))
+    IOSetParam("in_place", convert(Bool, in_place))
   end
   if !ismissing(initial_centroids)
-    CLISetParamMat("initial_centroids", initial_centroids, points_are_rows)
+    IOSetParamMat("initial_centroids", initial_centroids, points_are_rows)
   end
   if !ismissing(kill_empty_clusters)
-    CLISetParam("kill_empty_clusters", convert(Bool, kill_empty_clusters))
+    IOSetParam("kill_empty_clusters", convert(Bool, kill_empty_clusters))
   end
   if !ismissing(labels_only)
-    CLISetParam("labels_only", convert(Bool, labels_only))
+    IOSetParam("labels_only", convert(Bool, labels_only))
   end
   if !ismissing(max_iterations)
-    CLISetParam("max_iterations", convert(Int, max_iterations))
+    IOSetParam("max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(percentage)
-    CLISetParam("percentage", convert(Float64, percentage))
+    IOSetParam("percentage", convert(Float64, percentage))
   end
   if !ismissing(refined_start)
-    CLISetParam("refined_start", convert(Bool, refined_start))
+    IOSetParam("refined_start", convert(Bool, refined_start))
   end
   if !ismissing(samplings)
-    CLISetParam("samplings", convert(Int, samplings))
+    IOSetParam("samplings", convert(Int, samplings))
   end
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("centroid")
-  CLISetPassed("output")
+  IOSetPassed("centroid")
+  IOSetPassed("output")
   # Call the program.
   kmeans_mlpackMain()
 
-  return CLIGetParamMat("centroid", points_are_rows),
-         CLIGetParamMat("output", points_are_rows)
+  return IOGetParamMat("centroid", points_are_rows),
+         IOGetParamMat("output", points_are_rows)
 end

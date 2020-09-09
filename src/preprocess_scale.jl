@@ -2,7 +2,7 @@ export preprocess_scale
 
 import ..ScalingModel
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const preprocess_scaleLibrary = mlpack_jll.libmlpack_julia_preprocess_scale
@@ -23,13 +23,13 @@ module preprocess_scale_internal
 import ...ScalingModel
 
 # Get the value of a model pointer parameter of type ScalingModel.
-function CLIGetParamScalingModel(paramName::String)::ScalingModel
-  ScalingModel(ccall((:CLI_GetParamScalingModelPtr, preprocess_scaleLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamScalingModel(paramName::String)::ScalingModel
+  ScalingModel(ccall((:IO_GetParamScalingModelPtr, preprocess_scaleLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type ScalingModel.
-function CLISetParamScalingModel(paramName::String, model::ScalingModel)
-  ccall((:CLI_SetParamScalingModelPtr, preprocess_scaleLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamScalingModel(paramName::String, model::ScalingModel)
+  ccall((:IO_SetParamScalingModelPtr, preprocess_scaleLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -109,7 +109,7 @@ julia> X_scaled, _ = preprocess_scale(X; max_value=3, min_value=1,
  - `epsilon::Float64`: regularization Parameter for pcawhitening, or
       zcawhitening, should be between -1 to 1.  Default value `1e-06`.
       
- - `input_model::unknown_`: Input Scaling model.
+ - `input_model::ScalingModel`: Input Scaling model.
  - `inverse_scaling::Bool`: Inverse Scaling to get original dataset 
       Default value `false`.
       
@@ -131,7 +131,7 @@ julia> X_scaled, _ = preprocess_scale(X; max_value=3, min_value=1,
 # Return values
 
  - `output::Array{Float64, 2}`: Matrix to save scaled data to.
- - `output_model::unknown_`: Output scaling model.
+ - `output_model::ScalingModel`: Output scaling model.
 
 """
 function preprocess_scale(input;
@@ -147,42 +147,42 @@ function preprocess_scale(input;
   # Force the symbols to load.
   ccall((:loadSymbols, preprocess_scaleLibrary), Nothing, ());
 
-  CLIRestoreSettings("Scale Data")
+  IORestoreSettings("Scale Data")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParamMat("input", input, points_are_rows)
+  IOSetParamMat("input", input, points_are_rows)
   if !ismissing(epsilon)
-    CLISetParam("epsilon", convert(Float64, epsilon))
+    IOSetParam("epsilon", convert(Float64, epsilon))
   end
   if !ismissing(input_model)
-    preprocess_scale_internal.CLISetParamScalingModel("input_model", convert(ScalingModel, input_model))
+    preprocess_scale_internal.IOSetParamScalingModel("input_model", convert(ScalingModel, input_model))
   end
   if !ismissing(inverse_scaling)
-    CLISetParam("inverse_scaling", convert(Bool, inverse_scaling))
+    IOSetParam("inverse_scaling", convert(Bool, inverse_scaling))
   end
   if !ismissing(max_value)
-    CLISetParam("max_value", convert(Int, max_value))
+    IOSetParam("max_value", convert(Int, max_value))
   end
   if !ismissing(min_value)
-    CLISetParam("min_value", convert(Int, min_value))
+    IOSetParam("min_value", convert(Int, min_value))
   end
   if !ismissing(scaler_method)
-    CLISetParam("scaler_method", convert(String, scaler_method))
+    IOSetParam("scaler_method", convert(String, scaler_method))
   end
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output")
-  CLISetPassed("output_model")
+  IOSetPassed("output")
+  IOSetPassed("output_model")
   # Call the program.
   preprocess_scale_mlpackMain()
 
-  return CLIGetParamMat("output", points_are_rows),
-         preprocess_scale_internal.CLIGetParamScalingModel("output_model")
+  return IOGetParamMat("output", points_are_rows),
+         preprocess_scale_internal.IOGetParamScalingModel("output_model")
 end

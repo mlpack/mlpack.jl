@@ -1,7 +1,7 @@
 export dbscan
 
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const dbscanLibrary = mlpack_jll.libmlpack_julia_dbscan
@@ -97,39 +97,39 @@ function dbscan(input;
   # Force the symbols to load.
   ccall((:loadSymbols, dbscanLibrary), Nothing, ());
 
-  CLIRestoreSettings("DBSCAN clustering")
+  IORestoreSettings("DBSCAN clustering")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParamMat("input", input, points_are_rows)
+  IOSetParamMat("input", input, points_are_rows)
   if !ismissing(epsilon)
-    CLISetParam("epsilon", convert(Float64, epsilon))
+    IOSetParam("epsilon", convert(Float64, epsilon))
   end
   if !ismissing(min_size)
-    CLISetParam("min_size", convert(Int, min_size))
+    IOSetParam("min_size", convert(Int, min_size))
   end
   if !ismissing(naive)
-    CLISetParam("naive", convert(Bool, naive))
+    IOSetParam("naive", convert(Bool, naive))
   end
   if !ismissing(selection_type)
-    CLISetParam("selection_type", convert(String, selection_type))
+    IOSetParam("selection_type", convert(String, selection_type))
   end
   if !ismissing(single_mode)
-    CLISetParam("single_mode", convert(Bool, single_mode))
+    IOSetParam("single_mode", convert(Bool, single_mode))
   end
   if !ismissing(tree_type)
-    CLISetParam("tree_type", convert(String, tree_type))
+    IOSetParam("tree_type", convert(String, tree_type))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("assignments")
-  CLISetPassed("centroids")
+  IOSetPassed("assignments")
+  IOSetPassed("centroids")
   # Call the program.
   dbscan_mlpackMain()
 
-  return CLIGetParamURow("assignments"),
-         CLIGetParamMat("centroids", points_are_rows)
+  return IOGetParamURow("assignments"),
+         IOGetParamMat("centroids", points_are_rows)
 end

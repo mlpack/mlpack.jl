@@ -2,7 +2,7 @@ export random_forest
 
 import ..RandomForestModel
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const random_forestLibrary = mlpack_jll.libmlpack_julia_random_forest
@@ -23,13 +23,13 @@ module random_forest_internal
 import ...RandomForestModel
 
 # Get the value of a model pointer parameter of type RandomForestModel.
-function CLIGetParamRandomForestModel(paramName::String)::RandomForestModel
-  RandomForestModel(ccall((:CLI_GetParamRandomForestModelPtr, random_forestLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamRandomForestModel(paramName::String)::RandomForestModel
+  RandomForestModel(ccall((:IO_GetParamRandomForestModelPtr, random_forestLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type RandomForestModel.
-function CLISetParamRandomForestModel(paramName::String, model::RandomForestModel)
-  ccall((:CLI_SetParamRandomForestModelPtr, random_forestLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamRandomForestModel(paramName::String, model::RandomForestModel)
+  ccall((:IO_SetParamRandomForestModelPtr, random_forestLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -105,7 +105,7 @@ julia> _, predictions, _ = random_forest(input_model=rf_model,
 
 # Arguments
 
- - `input_model::unknown_`: Pre-trained random forest to use for
+ - `input_model::RandomForestModel`: Pre-trained random forest to use for
       classification.
  - `labels::Array{Int, 1}`: Labels for training dataset.
  - `maximum_depth::Int`: Maximum depth of the tree (0 means no limit). 
@@ -141,7 +141,8 @@ julia> _, predictions, _ = random_forest(input_model=rf_model,
 
 # Return values
 
- - `output_model::unknown_`: Model to save trained random forest to.
+ - `output_model::RandomForestModel`: Model to save trained random forest
+      to.
  - `predictions::Array{Int, 1}`: Predicted classes for each point in the
       test set.
  - `probabilities::Array{Float64, 2}`: Predicted class probabilities for
@@ -166,58 +167,58 @@ function random_forest(;
   # Force the symbols to load.
   ccall((:loadSymbols, random_forestLibrary), Nothing, ());
 
-  CLIRestoreSettings("Random forests")
+  IORestoreSettings("Random forests")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(input_model)
-    random_forest_internal.CLISetParamRandomForestModel("input_model", convert(RandomForestModel, input_model))
+    random_forest_internal.IOSetParamRandomForestModel("input_model", convert(RandomForestModel, input_model))
   end
   if !ismissing(labels)
-    CLISetParamURow("labels", labels)
+    IOSetParamURow("labels", labels)
   end
   if !ismissing(maximum_depth)
-    CLISetParam("maximum_depth", convert(Int, maximum_depth))
+    IOSetParam("maximum_depth", convert(Int, maximum_depth))
   end
   if !ismissing(minimum_gain_split)
-    CLISetParam("minimum_gain_split", convert(Float64, minimum_gain_split))
+    IOSetParam("minimum_gain_split", convert(Float64, minimum_gain_split))
   end
   if !ismissing(minimum_leaf_size)
-    CLISetParam("minimum_leaf_size", convert(Int, minimum_leaf_size))
+    IOSetParam("minimum_leaf_size", convert(Int, minimum_leaf_size))
   end
   if !ismissing(num_trees)
-    CLISetParam("num_trees", convert(Int, num_trees))
+    IOSetParam("num_trees", convert(Int, num_trees))
   end
   if !ismissing(print_training_accuracy)
-    CLISetParam("print_training_accuracy", convert(Bool, print_training_accuracy))
+    IOSetParam("print_training_accuracy", convert(Bool, print_training_accuracy))
   end
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if !ismissing(subspace_dim)
-    CLISetParam("subspace_dim", convert(Int, subspace_dim))
+    IOSetParam("subspace_dim", convert(Int, subspace_dim))
   end
   if !ismissing(test)
-    CLISetParamMat("test", test, points_are_rows)
+    IOSetParamMat("test", test, points_are_rows)
   end
   if !ismissing(test_labels)
-    CLISetParamURow("test_labels", test_labels)
+    IOSetParamURow("test_labels", test_labels)
   end
   if !ismissing(training)
-    CLISetParamMat("training", training, points_are_rows)
+    IOSetParamMat("training", training, points_are_rows)
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output_model")
-  CLISetPassed("predictions")
-  CLISetPassed("probabilities")
+  IOSetPassed("output_model")
+  IOSetPassed("predictions")
+  IOSetPassed("probabilities")
   # Call the program.
   random_forest_mlpackMain()
 
-  return random_forest_internal.CLIGetParamRandomForestModel("output_model"),
-         CLIGetParamURow("predictions"),
-         CLIGetParamMat("probabilities", points_are_rows)
+  return random_forest_internal.IOGetParamRandomForestModel("output_model"),
+         IOGetParamURow("predictions"),
+         IOGetParamMat("probabilities", points_are_rows)
 end

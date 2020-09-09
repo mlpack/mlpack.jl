@@ -2,7 +2,7 @@ export det
 
 import ..DTree
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const detLibrary = mlpack_jll.libmlpack_julia_det
@@ -23,13 +23,13 @@ module det_internal
 import ...DTree
 
 # Get the value of a model pointer parameter of type DTree.
-function CLIGetParamDTree(paramName::String)::DTree
-  DTree(ccall((:CLI_GetParamDTreePtr, detLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamDTree(paramName::String)::DTree
+  DTree(ccall((:IO_GetParamDTreePtr, detLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type DTree.
-function CLISetParamDTree(paramName::String, model::DTree)
-  ccall((:CLI_SetParamDTreePtr, detLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamDTree(paramName::String, model::DTree)
+  ccall((:IO_SetParamDTreePtr, detLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -79,7 +79,7 @@ may be saved using the `test_set_estimates` output parameter.
  - `folds::Int`: The number of folds of cross-validation to perform for
       the estimation (0 is LOOCV)  Default value `10`.
       
- - `input_model::unknown_`: Trained density estimation tree to load.
+ - `input_model::DTree`: Trained density estimation tree to load.
  - `max_leaf_size::Int`: The maximum size of a leaf in the unpruned, fully
       grown DET.  Default value `10`.
       
@@ -102,8 +102,8 @@ may be saved using the `test_set_estimates` output parameter.
 
 # Return values
 
- - `output_model::unknown_`: Output to save trained density estimation
-      tree to.
+ - `output_model::DTree`: Output to save trained density estimation tree
+      to.
  - `tag_counters_file::String`: The file to output the number of points
       that went to each leaf.  Default value ``.
       
@@ -132,52 +132,52 @@ function det(;
   # Force the symbols to load.
   ccall((:loadSymbols, detLibrary), Nothing, ());
 
-  CLIRestoreSettings("Density Estimation With Density Estimation Trees")
+  IORestoreSettings("Density Estimation With Density Estimation Trees")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(folds)
-    CLISetParam("folds", convert(Int, folds))
+    IOSetParam("folds", convert(Int, folds))
   end
   if !ismissing(input_model)
-    det_internal.CLISetParamDTree("input_model", convert(DTree, input_model))
+    det_internal.IOSetParamDTree("input_model", convert(DTree, input_model))
   end
   if !ismissing(max_leaf_size)
-    CLISetParam("max_leaf_size", convert(Int, max_leaf_size))
+    IOSetParam("max_leaf_size", convert(Int, max_leaf_size))
   end
   if !ismissing(min_leaf_size)
-    CLISetParam("min_leaf_size", convert(Int, min_leaf_size))
+    IOSetParam("min_leaf_size", convert(Int, min_leaf_size))
   end
   if !ismissing(path_format)
-    CLISetParam("path_format", convert(String, path_format))
+    IOSetParam("path_format", convert(String, path_format))
   end
   if !ismissing(skip_pruning)
-    CLISetParam("skip_pruning", convert(Bool, skip_pruning))
+    IOSetParam("skip_pruning", convert(Bool, skip_pruning))
   end
   if !ismissing(test)
-    CLISetParamMat("test", test, points_are_rows)
+    IOSetParamMat("test", test, points_are_rows)
   end
   if !ismissing(training)
-    CLISetParamMat("training", training, points_are_rows)
+    IOSetParamMat("training", training, points_are_rows)
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output_model")
-  CLISetPassed("tag_counters_file")
-  CLISetPassed("tag_file")
-  CLISetPassed("test_set_estimates")
-  CLISetPassed("training_set_estimates")
-  CLISetPassed("vi")
+  IOSetPassed("output_model")
+  IOSetPassed("tag_counters_file")
+  IOSetPassed("tag_file")
+  IOSetPassed("test_set_estimates")
+  IOSetPassed("training_set_estimates")
+  IOSetPassed("vi")
   # Call the program.
   det_mlpackMain()
 
-  return det_internal.CLIGetParamDTree("output_model"),
-         Base.unsafe_string(CLIGetParamString("tag_counters_file")),
-         Base.unsafe_string(CLIGetParamString("tag_file")),
-         CLIGetParamMat("test_set_estimates", points_are_rows),
-         CLIGetParamMat("training_set_estimates", points_are_rows),
-         CLIGetParamMat("vi", points_are_rows)
+  return det_internal.IOGetParamDTree("output_model"),
+         Base.unsafe_string(IOGetParamString("tag_counters_file")),
+         Base.unsafe_string(IOGetParamString("tag_file")),
+         IOGetParamMat("test_set_estimates", points_are_rows),
+         IOGetParamMat("training_set_estimates", points_are_rows),
+         IOGetParamMat("vi", points_are_rows)
 end

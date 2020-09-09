@@ -2,7 +2,7 @@ export decision_tree
 
 import ..DecisionTreeModel
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const decision_treeLibrary = mlpack_jll.libmlpack_julia_decision_tree
@@ -23,13 +23,13 @@ module decision_tree_internal
 import ...DecisionTreeModel
 
 # Get the value of a model pointer parameter of type DecisionTreeModel.
-function CLIGetParamDecisionTreeModel(paramName::String)::DecisionTreeModel
-  DecisionTreeModel(ccall((:CLI_GetParamDecisionTreeModelPtr, decision_treeLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamDecisionTreeModel(paramName::String)::DecisionTreeModel
+  DecisionTreeModel(ccall((:IO_GetParamDecisionTreeModelPtr, decision_treeLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type DecisionTreeModel.
-function CLISetParamDecisionTreeModel(paramName::String, model::DecisionTreeModel)
-  ccall((:CLI_SetParamDecisionTreeModelPtr, decision_treeLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamDecisionTreeModel(paramName::String, model::DecisionTreeModel)
+  ccall((:IO_SetParamDecisionTreeModelPtr, decision_treeLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -99,8 +99,8 @@ julia> _, predictions, _ = decision_tree(input_model=tree,
 
 # Arguments
 
- - `input_model::unknown_`: Pre-trained decision tree, to be used with
-      test points.
+ - `input_model::DecisionTreeModel`: Pre-trained decision tree, to be used
+      with test points.
  - `labels::Array{Int, 1}`: Training labels.
  - `maximum_depth::Int`: Maximum depth of the tree (0 means no limit). 
       Default value `0`.
@@ -130,7 +130,7 @@ julia> _, predictions, _ = decision_tree(input_model=tree,
 
 # Return values
 
- - `output_model::unknown_`: Output for trained decision tree.
+ - `output_model::DecisionTreeModel`: Output for trained decision tree.
  - `predictions::Array{Int, 1}`: Class predictions for each test point.
  - `probabilities::Array{Float64, 2}`: Class probabilities for each test
       point.
@@ -153,55 +153,55 @@ function decision_tree(;
   # Force the symbols to load.
   ccall((:loadSymbols, decision_treeLibrary), Nothing, ());
 
-  CLIRestoreSettings("Decision tree")
+  IORestoreSettings("Decision tree")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(input_model)
-    decision_tree_internal.CLISetParamDecisionTreeModel("input_model", convert(DecisionTreeModel, input_model))
+    decision_tree_internal.IOSetParamDecisionTreeModel("input_model", convert(DecisionTreeModel, input_model))
   end
   if !ismissing(labels)
-    CLISetParamURow("labels", labels)
+    IOSetParamURow("labels", labels)
   end
   if !ismissing(maximum_depth)
-    CLISetParam("maximum_depth", convert(Int, maximum_depth))
+    IOSetParam("maximum_depth", convert(Int, maximum_depth))
   end
   if !ismissing(minimum_gain_split)
-    CLISetParam("minimum_gain_split", convert(Float64, minimum_gain_split))
+    IOSetParam("minimum_gain_split", convert(Float64, minimum_gain_split))
   end
   if !ismissing(minimum_leaf_size)
-    CLISetParam("minimum_leaf_size", convert(Int, minimum_leaf_size))
+    IOSetParam("minimum_leaf_size", convert(Int, minimum_leaf_size))
   end
   if !ismissing(print_training_accuracy)
-    CLISetParam("print_training_accuracy", convert(Bool, print_training_accuracy))
+    IOSetParam("print_training_accuracy", convert(Bool, print_training_accuracy))
   end
   if !ismissing(print_training_error)
-    CLISetParam("print_training_error", convert(Bool, print_training_error))
+    IOSetParam("print_training_error", convert(Bool, print_training_error))
   end
   if !ismissing(test)
-    CLISetParam("test", convert(Tuple{Array{Bool, 1}, Array{Float64, 2}}, test), points_are_rows)
+    IOSetParam("test", convert(Tuple{Array{Bool, 1}, Array{Float64, 2}}, test), points_are_rows)
   end
   if !ismissing(test_labels)
-    CLISetParamURow("test_labels", test_labels)
+    IOSetParamURow("test_labels", test_labels)
   end
   if !ismissing(training)
-    CLISetParam("training", convert(Tuple{Array{Bool, 1}, Array{Float64, 2}}, training), points_are_rows)
+    IOSetParam("training", convert(Tuple{Array{Bool, 1}, Array{Float64, 2}}, training), points_are_rows)
   end
   if !ismissing(weights)
-    CLISetParamMat("weights", weights, points_are_rows)
+    IOSetParamMat("weights", weights, points_are_rows)
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output_model")
-  CLISetPassed("predictions")
-  CLISetPassed("probabilities")
+  IOSetPassed("output_model")
+  IOSetPassed("predictions")
+  IOSetPassed("probabilities")
   # Call the program.
   decision_tree_mlpackMain()
 
-  return decision_tree_internal.CLIGetParamDecisionTreeModel("output_model"),
-         CLIGetParamURow("predictions"),
-         CLIGetParamMat("probabilities", points_are_rows)
+  return decision_tree_internal.IOGetParamDecisionTreeModel("output_model"),
+         IOGetParamURow("predictions"),
+         IOGetParamMat("probabilities", points_are_rows)
 end

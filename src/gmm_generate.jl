@@ -2,7 +2,7 @@ export gmm_generate
 
 import ..GMM
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const gmm_generateLibrary = mlpack_jll.libmlpack_julia_gmm_generate
@@ -23,13 +23,13 @@ module gmm_generate_internal
 import ...GMM
 
 # Get the value of a model pointer parameter of type GMM.
-function CLIGetParamGMM(paramName::String)::GMM
-  GMM(ccall((:CLI_GetParamGMMPtr, gmm_generateLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamGMM(paramName::String)::GMM
+  GMM(ccall((:IO_GetParamGMMPtr, gmm_generateLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type GMM.
-function CLISetParamGMM(paramName::String, model::GMM)
-  ccall((:CLI_SetParamGMMPtr, gmm_generateLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamGMM(paramName::String, model::GMM)
+  ccall((:IO_SetParamGMMPtr, gmm_generateLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -63,7 +63,7 @@ julia> samples = gmm_generate(gmm, 100)
 
 # Arguments
 
- - `input_model::unknown_`: Input GMM model to generate samples from.
+ - `input_model::GMM`: Input GMM model to generate samples from.
  - `samples::Int`: Number of samples to generate.
  - `seed::Int`: Random seed.  If 0, 'std::time(NULL)' is used.  Default
       value `0`.
@@ -85,23 +85,23 @@ function gmm_generate(input_model::GMM,
   # Force the symbols to load.
   ccall((:loadSymbols, gmm_generateLibrary), Nothing, ());
 
-  CLIRestoreSettings("GMM Sample Generator")
+  IORestoreSettings("GMM Sample Generator")
 
   # Process each input argument before calling mlpackMain().
-  gmm_generate_internal.CLISetParamGMM("input_model", convert(GMM, input_model))
-  CLISetParam("samples", samples)
+  gmm_generate_internal.IOSetParamGMM("input_model", convert(GMM, input_model))
+  IOSetParam("samples", samples)
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output")
+  IOSetPassed("output")
   # Call the program.
   gmm_generate_mlpackMain()
 
-  return CLIGetParamMat("output", points_are_rows)
+  return IOGetParamMat("output", points_are_rows)
 end

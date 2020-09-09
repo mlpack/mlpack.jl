@@ -2,6 +2,7 @@
 
 adaboost = _Internal.adaboost
 approx_kfn = _Internal.approx_kfn
+bayesian_linear_regression = _Internal.bayesian_linear_regression
 cf = _Internal.cf
 dbscan = _Internal.dbscan
 decision_stump = _Internal.decision_stump
@@ -17,6 +18,7 @@ hmm_loglik = _Internal.hmm_loglik
 hmm_viterbi = _Internal.hmm_viterbi
 hmm_generate = _Internal.hmm_generate
 hoeffding_tree = _Internal.hoeffding_tree
+kde = _Internal.kde
 kernel_pca = _Internal.kernel_pca
 kmeans = _Internal.kmeans
 lars = _Internal.lars
@@ -38,6 +40,7 @@ preprocess_split = _Internal.preprocess_split
 preprocess_binarize = _Internal.preprocess_binarize
 preprocess_describe = _Internal.preprocess_describe
 preprocess_scale = _Internal.preprocess_scale
+preprocess_one_hot_encoding = _Internal.preprocess_one_hot_encoding
 image_converter = _Internal.image_converter
 radical = _Internal.radical
 random_forest = _Internal.random_forest

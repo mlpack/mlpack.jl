@@ -1,7 +1,7 @@
 export nmf
 
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const nmfLibrary = mlpack_jll.libmlpack_julia_nmf
@@ -97,40 +97,40 @@ function nmf(input,
   # Force the symbols to load.
   ccall((:loadSymbols, nmfLibrary), Nothing, ());
 
-  CLIRestoreSettings("Non-negative Matrix Factorization")
+  IORestoreSettings("Non-negative Matrix Factorization")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParamMat("input", input, points_are_rows)
-  CLISetParam("rank", rank)
+  IOSetParamMat("input", input, points_are_rows)
+  IOSetParam("rank", rank)
   if !ismissing(initial_h)
-    CLISetParamMat("initial_h", initial_h, points_are_rows)
+    IOSetParamMat("initial_h", initial_h, points_are_rows)
   end
   if !ismissing(initial_w)
-    CLISetParamMat("initial_w", initial_w, points_are_rows)
+    IOSetParamMat("initial_w", initial_w, points_are_rows)
   end
   if !ismissing(max_iterations)
-    CLISetParam("max_iterations", convert(Int, max_iterations))
+    IOSetParam("max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(min_residue)
-    CLISetParam("min_residue", convert(Float64, min_residue))
+    IOSetParam("min_residue", convert(Float64, min_residue))
   end
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if !ismissing(update_rules)
-    CLISetParam("update_rules", convert(String, update_rules))
+    IOSetParam("update_rules", convert(String, update_rules))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("h")
-  CLISetPassed("w")
+  IOSetPassed("h")
+  IOSetPassed("w")
   # Call the program.
   nmf_mlpackMain()
 
-  return CLIGetParamMat("h", points_are_rows),
-         CLIGetParamMat("w", points_are_rows)
+  return IOGetParamMat("h", points_are_rows),
+         IOGetParamMat("w", points_are_rows)
 end

@@ -2,7 +2,7 @@ export hoeffding_tree
 
 import ..HoeffdingTreeModel
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const hoeffding_treeLibrary = mlpack_jll.libmlpack_julia_hoeffding_tree
@@ -23,13 +23,13 @@ module hoeffding_tree_internal
 import ...HoeffdingTreeModel
 
 # Get the value of a model pointer parameter of type HoeffdingTreeModel.
-function CLIGetParamHoeffdingTreeModel(paramName::String)::HoeffdingTreeModel
-  HoeffdingTreeModel(ccall((:CLI_GetParamHoeffdingTreeModelPtr, hoeffding_treeLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamHoeffdingTreeModel(paramName::String)::HoeffdingTreeModel
+  HoeffdingTreeModel(ccall((:IO_GetParamHoeffdingTreeModelPtr, hoeffding_treeLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type HoeffdingTreeModel.
-function CLISetParamHoeffdingTreeModel(paramName::String, model::HoeffdingTreeModel)
-  ccall((:CLI_SetParamHoeffdingTreeModelPtr, hoeffding_treeLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamHoeffdingTreeModel(paramName::String, model::HoeffdingTreeModel)
+  ccall((:IO_SetParamHoeffdingTreeModelPtr, hoeffding_treeLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -106,7 +106,7 @@ julia> _, predictions, class_probs =
  - `info_gain::Bool`: If set, information gain is used instead of Gini
       impurity for calculating Hoeffding bounds.  Default value `false`.
       
- - `input_model::unknown_`: Input trained Hoeffding tree model.
+ - `input_model::HoeffdingTreeModel`: Input trained Hoeffding tree model.
  - `labels::Array{Int, 1}`: Labels for training dataset.
  - `max_samples::Int`: Maximum number of samples before splitting. 
       Default value `5000`.
@@ -135,7 +135,8 @@ julia> _, predictions, class_probs =
 
 # Return values
 
- - `output_model::unknown_`: Output for trained Hoeffding tree model.
+ - `output_model::HoeffdingTreeModel`: Output for trained Hoeffding tree
+      model.
  - `predictions::Array{Int, 1}`: Matrix to output label predictions for
       test data into.
  - `probabilities::Array{Float64, 2}`: In addition to predicting labels,
@@ -162,64 +163,64 @@ function hoeffding_tree(;
   # Force the symbols to load.
   ccall((:loadSymbols, hoeffding_treeLibrary), Nothing, ());
 
-  CLIRestoreSettings("Hoeffding trees")
+  IORestoreSettings("Hoeffding trees")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(batch_mode)
-    CLISetParam("batch_mode", convert(Bool, batch_mode))
+    IOSetParam("batch_mode", convert(Bool, batch_mode))
   end
   if !ismissing(bins)
-    CLISetParam("bins", convert(Int, bins))
+    IOSetParam("bins", convert(Int, bins))
   end
   if !ismissing(confidence)
-    CLISetParam("confidence", convert(Float64, confidence))
+    IOSetParam("confidence", convert(Float64, confidence))
   end
   if !ismissing(info_gain)
-    CLISetParam("info_gain", convert(Bool, info_gain))
+    IOSetParam("info_gain", convert(Bool, info_gain))
   end
   if !ismissing(input_model)
-    hoeffding_tree_internal.CLISetParamHoeffdingTreeModel("input_model", convert(HoeffdingTreeModel, input_model))
+    hoeffding_tree_internal.IOSetParamHoeffdingTreeModel("input_model", convert(HoeffdingTreeModel, input_model))
   end
   if !ismissing(labels)
-    CLISetParamURow("labels", labels)
+    IOSetParamURow("labels", labels)
   end
   if !ismissing(max_samples)
-    CLISetParam("max_samples", convert(Int, max_samples))
+    IOSetParam("max_samples", convert(Int, max_samples))
   end
   if !ismissing(min_samples)
-    CLISetParam("min_samples", convert(Int, min_samples))
+    IOSetParam("min_samples", convert(Int, min_samples))
   end
   if !ismissing(numeric_split_strategy)
-    CLISetParam("numeric_split_strategy", convert(String, numeric_split_strategy))
+    IOSetParam("numeric_split_strategy", convert(String, numeric_split_strategy))
   end
   if !ismissing(observations_before_binning)
-    CLISetParam("observations_before_binning", convert(Int, observations_before_binning))
+    IOSetParam("observations_before_binning", convert(Int, observations_before_binning))
   end
   if !ismissing(passes)
-    CLISetParam("passes", convert(Int, passes))
+    IOSetParam("passes", convert(Int, passes))
   end
   if !ismissing(test)
-    CLISetParam("test", convert(Tuple{Array{Bool, 1}, Array{Float64, 2}}, test), points_are_rows)
+    IOSetParam("test", convert(Tuple{Array{Bool, 1}, Array{Float64, 2}}, test), points_are_rows)
   end
   if !ismissing(test_labels)
-    CLISetParamURow("test_labels", test_labels)
+    IOSetParamURow("test_labels", test_labels)
   end
   if !ismissing(training)
-    CLISetParam("training", convert(Tuple{Array{Bool, 1}, Array{Float64, 2}}, training), points_are_rows)
+    IOSetParam("training", convert(Tuple{Array{Bool, 1}, Array{Float64, 2}}, training), points_are_rows)
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output_model")
-  CLISetPassed("predictions")
-  CLISetPassed("probabilities")
+  IOSetPassed("output_model")
+  IOSetPassed("predictions")
+  IOSetPassed("probabilities")
   # Call the program.
   hoeffding_tree_mlpackMain()
 
-  return hoeffding_tree_internal.CLIGetParamHoeffdingTreeModel("output_model"),
-         CLIGetParamURow("predictions"),
-         CLIGetParamMat("probabilities", points_are_rows)
+  return hoeffding_tree_internal.IOGetParamHoeffdingTreeModel("output_model"),
+         IOGetParamURow("predictions"),
+         IOGetParamMat("probabilities", points_are_rows)
 end

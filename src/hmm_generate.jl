@@ -2,7 +2,7 @@ export hmm_generate
 
 import ..HMMModel
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const hmm_generateLibrary = mlpack_jll.libmlpack_julia_hmm_generate
@@ -23,13 +23,13 @@ module hmm_generate_internal
 import ...HMMModel
 
 # Get the value of a model pointer parameter of type HMMModel.
-function CLIGetParamHMMModel(paramName::String)::HMMModel
-  HMMModel(ccall((:CLI_GetParamHMMModelPtr, hmm_generateLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamHMMModel(paramName::String)::HMMModel
+  HMMModel(ccall((:IO_GetParamHMMModelPtr, hmm_generateLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type HMMModel.
-function CLISetParamHMMModel(paramName::String, model::HMMModel)
-  ccall((:CLI_SetParamHMMModelPtr, hmm_generateLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamHMMModel(paramName::String, model::HMMModel)
+  ccall((:IO_SetParamHMMModelPtr, hmm_generateLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -69,7 +69,7 @@ julia> observations, states = hmm_generate(150, hmm)
 # Arguments
 
  - `length::Int`: Length of sequence to generate.
- - `model::unknown_`: Trained HMM to generate sequences with.
+ - `model::HMMModel`: Trained HMM to generate sequences with.
  - `seed::Int`: Random seed.  If 0, 'std::time(NULL)' is used.  Default
       value `0`.
       
@@ -94,28 +94,28 @@ function hmm_generate(length::Int,
   # Force the symbols to load.
   ccall((:loadSymbols, hmm_generateLibrary), Nothing, ());
 
-  CLIRestoreSettings("Hidden Markov Model (HMM) Sequence Generator")
+  IORestoreSettings("Hidden Markov Model (HMM) Sequence Generator")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParam("length", length)
-  hmm_generate_internal.CLISetParamHMMModel("model", convert(HMMModel, model))
+  IOSetParam("length", length)
+  hmm_generate_internal.IOSetParamHMMModel("model", convert(HMMModel, model))
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if !ismissing(start_state)
-    CLISetParam("start_state", convert(Int, start_state))
+    IOSetParam("start_state", convert(Int, start_state))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output")
-  CLISetPassed("state")
+  IOSetPassed("output")
+  IOSetPassed("state")
   # Call the program.
   hmm_generate_mlpackMain()
 
-  return CLIGetParamMat("output", points_are_rows),
-         CLIGetParamUMat("state", points_are_rows)
+  return IOGetParamMat("output", points_are_rows),
+         IOGetParamUMat("state", points_are_rows)
 end

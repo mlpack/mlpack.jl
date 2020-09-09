@@ -2,7 +2,7 @@ export local_coordinate_coding
 
 import ..LocalCoordinateCoding
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const local_coordinate_codingLibrary = mlpack_jll.libmlpack_julia_local_coordinate_coding
@@ -23,13 +23,13 @@ module local_coordinate_coding_internal
 import ...LocalCoordinateCoding
 
 # Get the value of a model pointer parameter of type LocalCoordinateCoding.
-function CLIGetParamLocalCoordinateCoding(paramName::String)::LocalCoordinateCoding
-  LocalCoordinateCoding(ccall((:CLI_GetParamLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamLocalCoordinateCoding(paramName::String)::LocalCoordinateCoding
+  LocalCoordinateCoding(ccall((:IO_GetParamLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type LocalCoordinateCoding.
-function CLISetParamLocalCoordinateCoding(paramName::String, model::LocalCoordinateCoding)
-  ccall((:CLI_SetParamLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamLocalCoordinateCoding(paramName::String, model::LocalCoordinateCoding)
+  ccall((:IO_SetParamLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -68,9 +68,11 @@ coding matrix Z.
 To run this program, the input matrix X must be specified (with -i), along with
 the number of atoms in the dictionary (-k).  An initial dictionary may also be
 specified with the `initial_dictionary` parameter.  The l1-norm regularization
-parameter is specified with the `lambda` parameter.  For example, to run LCC on
-the dataset `data` using 200 atoms and an l1-regularization parameter of 0.1,
-saving the dictionary `dictionary` and the codes into `codes`, use
+parameter is specified with the `lambda` parameter.
+
+For example, to run LCC on the dataset `data` using 200 atoms and an
+l1-regularization parameter of 0.1, saving the dictionary `dictionary` and the
+codes into `codes`, use
 
 ```julia
 julia> using CSV
@@ -100,7 +102,7 @@ julia> new_codes, _, _ =
  - `atoms::Int`: Number of atoms in the dictionary.  Default value `0`.
 
  - `initial_dictionary::Array{Float64, 2}`: Optional initial dictionary.
- - `input_model::unknown_`: Input LCC model.
+ - `input_model::LocalCoordinateCoding`: Input LCC model.
  - `lambda::Float64`: Weighted l1-norm regularization parameter.  Default
       value `0`.
       
@@ -126,7 +128,7 @@ julia> new_codes, _, _ =
 
  - `codes::Array{Float64, 2}`: Output codes matrix.
  - `dictionary::Array{Float64, 2}`: Output dictionary matrix.
- - `output_model::unknown_`: Output for trained LCC model.
+ - `output_model::LocalCoordinateCoding`: Output for trained LCC model.
 
 """
 function local_coordinate_coding(;
@@ -145,52 +147,52 @@ function local_coordinate_coding(;
   # Force the symbols to load.
   ccall((:loadSymbols, local_coordinate_codingLibrary), Nothing, ());
 
-  CLIRestoreSettings("Local Coordinate Coding")
+  IORestoreSettings("Local Coordinate Coding")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(atoms)
-    CLISetParam("atoms", convert(Int, atoms))
+    IOSetParam("atoms", convert(Int, atoms))
   end
   if !ismissing(initial_dictionary)
-    CLISetParamMat("initial_dictionary", initial_dictionary, points_are_rows)
+    IOSetParamMat("initial_dictionary", initial_dictionary, points_are_rows)
   end
   if !ismissing(input_model)
-    local_coordinate_coding_internal.CLISetParamLocalCoordinateCoding("input_model", convert(LocalCoordinateCoding, input_model))
+    local_coordinate_coding_internal.IOSetParamLocalCoordinateCoding("input_model", convert(LocalCoordinateCoding, input_model))
   end
   if !ismissing(lambda)
-    CLISetParam("lambda", convert(Float64, lambda))
+    IOSetParam("lambda", convert(Float64, lambda))
   end
   if !ismissing(max_iterations)
-    CLISetParam("max_iterations", convert(Int, max_iterations))
+    IOSetParam("max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(normalize)
-    CLISetParam("normalize", convert(Bool, normalize))
+    IOSetParam("normalize", convert(Bool, normalize))
   end
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if !ismissing(test)
-    CLISetParamMat("test", test, points_are_rows)
+    IOSetParamMat("test", test, points_are_rows)
   end
   if !ismissing(tolerance)
-    CLISetParam("tolerance", convert(Float64, tolerance))
+    IOSetParam("tolerance", convert(Float64, tolerance))
   end
   if !ismissing(training)
-    CLISetParamMat("training", training, points_are_rows)
+    IOSetParamMat("training", training, points_are_rows)
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("codes")
-  CLISetPassed("dictionary")
-  CLISetPassed("output_model")
+  IOSetPassed("codes")
+  IOSetPassed("dictionary")
+  IOSetPassed("output_model")
   # Call the program.
   local_coordinate_coding_mlpackMain()
 
-  return CLIGetParamMat("codes", points_are_rows),
-         CLIGetParamMat("dictionary", points_are_rows),
-         local_coordinate_coding_internal.CLIGetParamLocalCoordinateCoding("output_model")
+  return IOGetParamMat("codes", points_are_rows),
+         IOGetParamMat("dictionary", points_are_rows),
+         local_coordinate_coding_internal.IOGetParamLocalCoordinateCoding("output_model")
 end

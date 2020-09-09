@@ -2,7 +2,7 @@ export perceptron
 
 import ..PerceptronModel
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const perceptronLibrary = mlpack_jll.libmlpack_julia_perceptron
@@ -23,13 +23,13 @@ module perceptron_internal
 import ...PerceptronModel
 
 # Get the value of a model pointer parameter of type PerceptronModel.
-function CLIGetParamPerceptronModel(paramName::String)::PerceptronModel
-  PerceptronModel(ccall((:CLI_GetParamPerceptronModelPtr, perceptronLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamPerceptronModel(paramName::String)::PerceptronModel
+  PerceptronModel(ccall((:IO_GetParamPerceptronModelPtr, perceptronLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type PerceptronModel.
-function CLISetParamPerceptronModel(paramName::String, model::PerceptronModel)
-  ccall((:CLI_SetParamPerceptronModelPtr, perceptronLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamPerceptronModel(paramName::String, model::PerceptronModel)
+  ccall((:IO_SetParamPerceptronModelPtr, perceptronLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -109,7 +109,7 @@ error.
 
 # Arguments
 
- - `input_model::unknown_`: Input perceptron model.
+ - `input_model::PerceptronModel`: Input perceptron model.
  - `labels::Array{Int, 1}`: A matrix containing labels for the training
       set.
  - `max_iterations::Int`: The maximum number of iterations the perceptron
@@ -125,7 +125,7 @@ error.
 
  - `output::Array{Int, 1}`: The matrix in which the predicted labels for
       the test set will be written.
- - `output_model::unknown_`: Output for trained perceptron model.
+ - `output_model::PerceptronModel`: Output for trained perceptron model.
  - `predictions::Array{Int, 1}`: The matrix in which the predicted labels
       for the test set will be written.
 
@@ -141,37 +141,37 @@ function perceptron(;
   # Force the symbols to load.
   ccall((:loadSymbols, perceptronLibrary), Nothing, ());
 
-  CLIRestoreSettings("Perceptron")
+  IORestoreSettings("Perceptron")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(input_model)
-    perceptron_internal.CLISetParamPerceptronModel("input_model", convert(PerceptronModel, input_model))
+    perceptron_internal.IOSetParamPerceptronModel("input_model", convert(PerceptronModel, input_model))
   end
   if !ismissing(labels)
-    CLISetParamURow("labels", labels)
+    IOSetParamURow("labels", labels)
   end
   if !ismissing(max_iterations)
-    CLISetParam("max_iterations", convert(Int, max_iterations))
+    IOSetParam("max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(test)
-    CLISetParamMat("test", test, points_are_rows)
+    IOSetParamMat("test", test, points_are_rows)
   end
   if !ismissing(training)
-    CLISetParamMat("training", training, points_are_rows)
+    IOSetParamMat("training", training, points_are_rows)
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output")
-  CLISetPassed("output_model")
-  CLISetPassed("predictions")
+  IOSetPassed("output")
+  IOSetPassed("output_model")
+  IOSetPassed("predictions")
   # Call the program.
   perceptron_mlpackMain()
 
-  return CLIGetParamURow("output"),
-         perceptron_internal.CLIGetParamPerceptronModel("output_model"),
-         CLIGetParamURow("predictions")
+  return IOGetParamURow("output"),
+         perceptron_internal.IOGetParamPerceptronModel("output_model"),
+         IOGetParamURow("predictions")
 end

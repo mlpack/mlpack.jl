@@ -2,7 +2,7 @@ export linear_regression
 
 import ..LinearRegression
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const linear_regressionLibrary = mlpack_jll.libmlpack_julia_linear_regression
@@ -23,13 +23,13 @@ module linear_regression_internal
 import ...LinearRegression
 
 # Get the value of a model pointer parameter of type LinearRegression.
-function CLIGetParamLinearRegression(paramName::String)::LinearRegression
-  LinearRegression(ccall((:CLI_GetParamLinearRegressionPtr, linear_regressionLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamLinearRegression(paramName::String)::LinearRegression
+  LinearRegression(ccall((:IO_GetParamLinearRegressionPtr, linear_regressionLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type LinearRegression.
-function CLISetParamLinearRegression(paramName::String, model::LinearRegression)
-  ccall((:CLI_SetParamLinearRegressionPtr, linear_regressionLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamLinearRegression(paramName::String, model::LinearRegression)
+  ccall((:IO_SetParamLinearRegressionPtr, linear_regressionLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -94,7 +94,8 @@ julia> _, X_test_responses = linear_regression(input_model=lr_model,
 
 # Arguments
 
- - `input_model::unknown_`: Existing LinearRegression model to use.
+ - `input_model::LinearRegression`: Existing LinearRegression model to
+      use.
  - `lambda::Float64`: Tikhonov regularization for ridge regression.  If 0,
       the method reduces to linear regression.  Default value `0`.
       
@@ -110,7 +111,7 @@ julia> _, X_test_responses = linear_regression(input_model=lr_model,
 
 # Return values
 
- - `output_model::unknown_`: Output LinearRegression model.
+ - `output_model::LinearRegression`: Output LinearRegression model.
  - `output_predictions::Array{Float64, 1}`: If --test_file is specified,
       this matrix is where the predicted responses will be saved.
 
@@ -126,35 +127,35 @@ function linear_regression(;
   # Force the symbols to load.
   ccall((:loadSymbols, linear_regressionLibrary), Nothing, ());
 
-  CLIRestoreSettings("Simple Linear Regression and Prediction")
+  IORestoreSettings("Simple Linear Regression and Prediction")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(input_model)
-    linear_regression_internal.CLISetParamLinearRegression("input_model", convert(LinearRegression, input_model))
+    linear_regression_internal.IOSetParamLinearRegression("input_model", convert(LinearRegression, input_model))
   end
   if !ismissing(lambda)
-    CLISetParam("lambda", convert(Float64, lambda))
+    IOSetParam("lambda", convert(Float64, lambda))
   end
   if !ismissing(test)
-    CLISetParamMat("test", test, points_are_rows)
+    IOSetParamMat("test", test, points_are_rows)
   end
   if !ismissing(training)
-    CLISetParamMat("training", training, points_are_rows)
+    IOSetParamMat("training", training, points_are_rows)
   end
   if !ismissing(training_responses)
-    CLISetParamRow("training_responses", training_responses)
+    IOSetParamRow("training_responses", training_responses)
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output_model")
-  CLISetPassed("output_predictions")
+  IOSetPassed("output_model")
+  IOSetPassed("output_predictions")
   # Call the program.
   linear_regression_mlpackMain()
 
-  return linear_regression_internal.CLIGetParamLinearRegression("output_model"),
-         CLIGetParamRow("output_predictions")
+  return linear_regression_internal.IOGetParamLinearRegression("output_model"),
+         IOGetParamRow("output_predictions")
 end

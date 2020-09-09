@@ -2,7 +2,7 @@ export hmm_loglik
 
 import ..HMMModel
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const hmm_loglikLibrary = mlpack_jll.libmlpack_julia_hmm_loglik
@@ -23,13 +23,13 @@ module hmm_loglik_internal
 import ...HMMModel
 
 # Get the value of a model pointer parameter of type HMMModel.
-function CLIGetParamHMMModel(paramName::String)::HMMModel
-  HMMModel(ccall((:CLI_GetParamHMMModelPtr, hmm_loglikLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamHMMModel(paramName::String)::HMMModel
+  HMMModel(ccall((:IO_GetParamHMMModelPtr, hmm_loglikLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type HMMModel.
-function CLISetParamHMMModel(paramName::String, model::HMMModel)
-  ccall((:CLI_SetParamHMMModelPtr, hmm_loglikLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamHMMModel(paramName::String, model::HMMModel)
+  ccall((:IO_SetParamHMMModelPtr, hmm_loglikLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -65,7 +65,7 @@ julia> _ = hmm_loglik(seq, hmm)
 # Arguments
 
  - `input::Array{Float64, 2}`: File containing observations,
- - `input_model::unknown_`: File containing HMM.
+ - `input_model::HMMModel`: File containing HMM.
  - `verbose::Bool`: Display informational messages and the full list of
       parameters and timers at the end of execution.  Default value `false`.
       
@@ -84,20 +84,20 @@ function hmm_loglik(input,
   # Force the symbols to load.
   ccall((:loadSymbols, hmm_loglikLibrary), Nothing, ());
 
-  CLIRestoreSettings("Hidden Markov Model (HMM) Sequence Log-Likelihood")
+  IORestoreSettings("Hidden Markov Model (HMM) Sequence Log-Likelihood")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParamMat("input", input, points_are_rows)
-  hmm_loglik_internal.CLISetParamHMMModel("input_model", convert(HMMModel, input_model))
+  IOSetParamMat("input", input, points_are_rows)
+  hmm_loglik_internal.IOSetParamHMMModel("input_model", convert(HMMModel, input_model))
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("log_likelihood")
+  IOSetPassed("log_likelihood")
   # Call the program.
   hmm_loglik_mlpackMain()
 
-  return CLIGetParamDouble("log_likelihood")
+  return IOGetParamDouble("log_likelihood")
 end

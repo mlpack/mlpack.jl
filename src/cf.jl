@@ -2,7 +2,7 @@ export cf
 
 import ..CFModel
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const cfLibrary = mlpack_jll.libmlpack_julia_cf
@@ -23,13 +23,13 @@ module cf_internal
 import ...CFModel
 
 # Get the value of a model pointer parameter of type CFModel.
-function CLIGetParamCFModel(paramName::String)::CFModel
-  CFModel(ccall((:CLI_GetParamCFModelPtr, cfLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamCFModel(paramName::String)::CFModel
+  CFModel(ccall((:IO_GetParamCFModelPtr, cfLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type CFModel.
-function CLISetParamCFModel(paramName::String, model::CFModel)
-  ccall((:CLI_SetParamCFModelPtr, cfLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamCFModel(paramName::String, model::CFModel)
+  ccall((:IO_SetParamCFModelPtr, cfLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -133,7 +133,7 @@ julia> recommendations, _ = cf(input_model=model, query=users,
  - `all_user_recommendations::Bool`: Generate recommendations for all
       users.  Default value `false`.
       
- - `input_model::unknown_`: Trained CF model to load.
+ - `input_model::CFModel`: Trained CF model to load.
  - `interpolation::String`: Algorithm used for weight interpolation. 
       Default value `average`.
       
@@ -176,7 +176,7 @@ julia> recommendations, _ = cf(input_model=model, query=users,
 
  - `output::Array{Int, 2}`: Matrix that will store output
       recommendations.
- - `output_model::unknown_`: Output for trained CF model.
+ - `output_model::CFModel`: Output for trained CF model.
 
 """
 function cf(;
@@ -201,68 +201,68 @@ function cf(;
   # Force the symbols to load.
   ccall((:loadSymbols, cfLibrary), Nothing, ());
 
-  CLIRestoreSettings("Collaborative Filtering")
+  IORestoreSettings("Collaborative Filtering")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(algorithm)
-    CLISetParam("algorithm", convert(String, algorithm))
+    IOSetParam("algorithm", convert(String, algorithm))
   end
   if !ismissing(all_user_recommendations)
-    CLISetParam("all_user_recommendations", convert(Bool, all_user_recommendations))
+    IOSetParam("all_user_recommendations", convert(Bool, all_user_recommendations))
   end
   if !ismissing(input_model)
-    cf_internal.CLISetParamCFModel("input_model", convert(CFModel, input_model))
+    cf_internal.IOSetParamCFModel("input_model", convert(CFModel, input_model))
   end
   if !ismissing(interpolation)
-    CLISetParam("interpolation", convert(String, interpolation))
+    IOSetParam("interpolation", convert(String, interpolation))
   end
   if !ismissing(iteration_only_termination)
-    CLISetParam("iteration_only_termination", convert(Bool, iteration_only_termination))
+    IOSetParam("iteration_only_termination", convert(Bool, iteration_only_termination))
   end
   if !ismissing(max_iterations)
-    CLISetParam("max_iterations", convert(Int, max_iterations))
+    IOSetParam("max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(min_residue)
-    CLISetParam("min_residue", convert(Float64, min_residue))
+    IOSetParam("min_residue", convert(Float64, min_residue))
   end
   if !ismissing(neighbor_search)
-    CLISetParam("neighbor_search", convert(String, neighbor_search))
+    IOSetParam("neighbor_search", convert(String, neighbor_search))
   end
   if !ismissing(neighborhood)
-    CLISetParam("neighborhood", convert(Int, neighborhood))
+    IOSetParam("neighborhood", convert(Int, neighborhood))
   end
   if !ismissing(normalization)
-    CLISetParam("normalization", convert(String, normalization))
+    IOSetParam("normalization", convert(String, normalization))
   end
   if !ismissing(query)
-    CLISetParamUMat("query", query, points_are_rows)
+    IOSetParamUMat("query", query, points_are_rows)
   end
   if !ismissing(rank)
-    CLISetParam("rank", convert(Int, rank))
+    IOSetParam("rank", convert(Int, rank))
   end
   if !ismissing(recommendations)
-    CLISetParam("recommendations", convert(Int, recommendations))
+    IOSetParam("recommendations", convert(Int, recommendations))
   end
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if !ismissing(test)
-    CLISetParamMat("test", test, points_are_rows)
+    IOSetParamMat("test", test, points_are_rows)
   end
   if !ismissing(training)
-    CLISetParamMat("training", training, points_are_rows)
+    IOSetParamMat("training", training, points_are_rows)
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output")
-  CLISetPassed("output_model")
+  IOSetPassed("output")
+  IOSetPassed("output_model")
   # Call the program.
   cf_mlpackMain()
 
-  return CLIGetParamUMat("output", points_are_rows),
-         cf_internal.CLIGetParamCFModel("output_model")
+  return IOGetParamUMat("output", points_are_rows),
+         cf_internal.IOGetParamCFModel("output_model")
 end

@@ -2,7 +2,7 @@ export lsh
 
 import ..LSHSearch
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const lshLibrary = mlpack_jll.libmlpack_julia_lsh
@@ -23,13 +23,13 @@ module lsh_internal
 import ...LSHSearch
 
 # Get the value of a model pointer parameter of type LSHSearch.
-function CLIGetParamLSHSearch(paramName::String)::LSHSearch
-  LSHSearch(ccall((:CLI_GetParamLSHSearchPtr, lshLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamLSHSearch(paramName::String)::LSHSearch
+  LSHSearch(ccall((:IO_GetParamLSHSearchPtr, lshLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type LSHSearch.
-function CLISetParamLSHSearch(paramName::String, model::LSHSearch)
-  ccall((:CLI_SetParamLSHSearchPtr, lshLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamLSHSearch(paramName::String, model::LSHSearch)
+  ccall((:IO_SetParamLSHSearchPtr, lshLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -86,7 +86,7 @@ the parameter-specific documentation for more information.
       the LSH preprocessing. By default, the LSH class automatically estimates a
       hash width for its use.  Default value `0`.
       
- - `input_model::unknown_`: Input LSH model.
+ - `input_model::LSHSearch`: Input LSH model.
  - `k::Int`: Number of nearest neighbors to find.  Default value `0`.
 
  - `num_probes::Int`: Number of additional probes for multiprobe LSH; if
@@ -117,7 +117,7 @@ the parameter-specific documentation for more information.
 
  - `distances::Array{Float64, 2}`: Matrix to output distances into.
  - `neighbors::Array{Int, 2}`: Matrix to output neighbors into.
- - `output_model::unknown_`: Output for trained LSH model.
+ - `output_model::LSHSearch`: Output for trained LSH model.
 
 """
 function lsh(;
@@ -138,58 +138,58 @@ function lsh(;
   # Force the symbols to load.
   ccall((:loadSymbols, lshLibrary), Nothing, ());
 
-  CLIRestoreSettings("K-Approximate-Nearest-Neighbor Search with LSH")
+  IORestoreSettings("K-Approximate-Nearest-Neighbor Search with LSH")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(bucket_size)
-    CLISetParam("bucket_size", convert(Int, bucket_size))
+    IOSetParam("bucket_size", convert(Int, bucket_size))
   end
   if !ismissing(hash_width)
-    CLISetParam("hash_width", convert(Float64, hash_width))
+    IOSetParam("hash_width", convert(Float64, hash_width))
   end
   if !ismissing(input_model)
-    lsh_internal.CLISetParamLSHSearch("input_model", convert(LSHSearch, input_model))
+    lsh_internal.IOSetParamLSHSearch("input_model", convert(LSHSearch, input_model))
   end
   if !ismissing(k)
-    CLISetParam("k", convert(Int, k))
+    IOSetParam("k", convert(Int, k))
   end
   if !ismissing(num_probes)
-    CLISetParam("num_probes", convert(Int, num_probes))
+    IOSetParam("num_probes", convert(Int, num_probes))
   end
   if !ismissing(projections)
-    CLISetParam("projections", convert(Int, projections))
+    IOSetParam("projections", convert(Int, projections))
   end
   if !ismissing(query)
-    CLISetParamMat("query", query, points_are_rows)
+    IOSetParamMat("query", query, points_are_rows)
   end
   if !ismissing(reference)
-    CLISetParamMat("reference", reference, points_are_rows)
+    IOSetParamMat("reference", reference, points_are_rows)
   end
   if !ismissing(second_hash_size)
-    CLISetParam("second_hash_size", convert(Int, second_hash_size))
+    IOSetParam("second_hash_size", convert(Int, second_hash_size))
   end
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if !ismissing(tables)
-    CLISetParam("tables", convert(Int, tables))
+    IOSetParam("tables", convert(Int, tables))
   end
   if !ismissing(true_neighbors)
-    CLISetParamUMat("true_neighbors", true_neighbors, points_are_rows)
+    IOSetParamUMat("true_neighbors", true_neighbors, points_are_rows)
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("distances")
-  CLISetPassed("neighbors")
-  CLISetPassed("output_model")
+  IOSetPassed("distances")
+  IOSetPassed("neighbors")
+  IOSetPassed("output_model")
   # Call the program.
   lsh_mlpackMain()
 
-  return CLIGetParamMat("distances", points_are_rows),
-         CLIGetParamUMat("neighbors", points_are_rows),
-         lsh_internal.CLIGetParamLSHSearch("output_model")
+  return IOGetParamMat("distances", points_are_rows),
+         IOGetParamUMat("neighbors", points_are_rows),
+         lsh_internal.IOGetParamLSHSearch("output_model")
 end

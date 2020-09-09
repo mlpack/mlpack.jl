@@ -2,7 +2,7 @@ export adaboost
 
 import ..AdaBoostModel
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const adaboostLibrary = mlpack_jll.libmlpack_julia_adaboost
@@ -23,13 +23,13 @@ module adaboost_internal
 import ...AdaBoostModel
 
 # Get the value of a model pointer parameter of type AdaBoostModel.
-function CLIGetParamAdaBoostModel(paramName::String)::AdaBoostModel
-  AdaBoostModel(ccall((:CLI_GetParamAdaBoostModelPtr, adaboostLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamAdaBoostModel(paramName::String)::AdaBoostModel
+  AdaBoostModel(ccall((:IO_GetParamAdaBoostModelPtr, adaboostLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type AdaBoostModel.
-function CLISetParamAdaBoostModel(paramName::String, model::AdaBoostModel)
-  ccall((:CLI_SetParamAdaBoostModelPtr, adaboostLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamAdaBoostModel(paramName::String, model::AdaBoostModel)
+  ccall((:IO_SetParamAdaBoostModelPtr, adaboostLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -101,7 +101,7 @@ julia> _, _, predictions, _ = adaboost(input_model=model,
 
 # Arguments
 
- - `input_model::unknown_`: Input AdaBoost model.
+ - `input_model::AdaBoostModel`: Input AdaBoost model.
  - `iterations::Int`: The maximum number of boosting iterations to be run
       (0 will run until convergence.)  Default value `1000`.
       
@@ -121,7 +121,7 @@ julia> _, _, predictions, _ = adaboost(input_model=model,
 # Return values
 
  - `output::Array{Int, 1}`: Predicted labels for the test set.
- - `output_model::unknown_`: Output trained AdaBoost model.
+ - `output_model::AdaBoostModel`: Output trained AdaBoost model.
  - `predictions::Array{Int, 1}`: Predicted labels for the test set.
  - `probabilities::Array{Float64, 2}`: Predicted class probabilities for
       each point in the test set.
@@ -140,45 +140,45 @@ function adaboost(;
   # Force the symbols to load.
   ccall((:loadSymbols, adaboostLibrary), Nothing, ());
 
-  CLIRestoreSettings("AdaBoost")
+  IORestoreSettings("AdaBoost")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(input_model)
-    adaboost_internal.CLISetParamAdaBoostModel("input_model", convert(AdaBoostModel, input_model))
+    adaboost_internal.IOSetParamAdaBoostModel("input_model", convert(AdaBoostModel, input_model))
   end
   if !ismissing(iterations)
-    CLISetParam("iterations", convert(Int, iterations))
+    IOSetParam("iterations", convert(Int, iterations))
   end
   if !ismissing(labels)
-    CLISetParamURow("labels", labels)
+    IOSetParamURow("labels", labels)
   end
   if !ismissing(test)
-    CLISetParamMat("test", test, points_are_rows)
+    IOSetParamMat("test", test, points_are_rows)
   end
   if !ismissing(tolerance)
-    CLISetParam("tolerance", convert(Float64, tolerance))
+    IOSetParam("tolerance", convert(Float64, tolerance))
   end
   if !ismissing(training)
-    CLISetParamMat("training", training, points_are_rows)
+    IOSetParamMat("training", training, points_are_rows)
   end
   if !ismissing(weak_learner)
-    CLISetParam("weak_learner", convert(String, weak_learner))
+    IOSetParam("weak_learner", convert(String, weak_learner))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output")
-  CLISetPassed("output_model")
-  CLISetPassed("predictions")
-  CLISetPassed("probabilities")
+  IOSetPassed("output")
+  IOSetPassed("output_model")
+  IOSetPassed("predictions")
+  IOSetPassed("probabilities")
   # Call the program.
   adaboost_mlpackMain()
 
-  return CLIGetParamURow("output"),
-         adaboost_internal.CLIGetParamAdaBoostModel("output_model"),
-         CLIGetParamURow("predictions"),
-         CLIGetParamMat("probabilities", points_are_rows)
+  return IOGetParamURow("output"),
+         adaboost_internal.IOGetParamAdaBoostModel("output_model"),
+         IOGetParamURow("predictions"),
+         IOGetParamMat("probabilities", points_are_rows)
 end

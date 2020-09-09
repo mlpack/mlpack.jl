@@ -2,7 +2,7 @@ export softmax_regression
 
 import ..SoftmaxRegression
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const softmax_regressionLibrary = mlpack_jll.libmlpack_julia_softmax_regression
@@ -23,13 +23,13 @@ module softmax_regression_internal
 import ...SoftmaxRegression
 
 # Get the value of a model pointer parameter of type SoftmaxRegression.
-function CLIGetParamSoftmaxRegression(paramName::String)::SoftmaxRegression
-  SoftmaxRegression(ccall((:CLI_GetParamSoftmaxRegressionPtr, softmax_regressionLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamSoftmaxRegression(paramName::String)::SoftmaxRegression
+  SoftmaxRegression(ccall((:IO_GetParamSoftmaxRegressionPtr, softmax_regressionLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type SoftmaxRegression.
-function CLISetParamSoftmaxRegression(paramName::String, model::SoftmaxRegression)
-  ccall((:CLI_SetParamSoftmaxRegressionPtr, softmax_regressionLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamSoftmaxRegression(paramName::String, model::SoftmaxRegression)
+  ccall((:IO_SetParamSoftmaxRegressionPtr, softmax_regressionLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -98,7 +98,8 @@ julia> _, predictions = softmax_regression(input_model=sr_model,
 
 # Arguments
 
- - `input_model::unknown_`: File containing existing model (parameters).
+ - `input_model::SoftmaxRegression`: File containing existing model
+      (parameters).
  - `labels::Array{Int, 1}`: A matrix containing labels (0 or 1) for the
       points in the training set (y). The labels must order as a row.
  - `lambda::Float64`: L2-regularization constant  Default value `0.0001`.
@@ -123,8 +124,8 @@ julia> _, predictions = softmax_regression(input_model=sr_model,
 
 # Return values
 
- - `output_model::unknown_`: File to save trained softmax regression model
-      to.
+ - `output_model::SoftmaxRegression`: File to save trained softmax
+      regression model to.
  - `predictions::Array{Int, 1}`: Matrix to save predictions for test
       dataset into.
 
@@ -144,47 +145,47 @@ function softmax_regression(;
   # Force the symbols to load.
   ccall((:loadSymbols, softmax_regressionLibrary), Nothing, ());
 
-  CLIRestoreSettings("Softmax Regression")
+  IORestoreSettings("Softmax Regression")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(input_model)
-    softmax_regression_internal.CLISetParamSoftmaxRegression("input_model", convert(SoftmaxRegression, input_model))
+    softmax_regression_internal.IOSetParamSoftmaxRegression("input_model", convert(SoftmaxRegression, input_model))
   end
   if !ismissing(labels)
-    CLISetParamURow("labels", labels)
+    IOSetParamURow("labels", labels)
   end
   if !ismissing(lambda)
-    CLISetParam("lambda", convert(Float64, lambda))
+    IOSetParam("lambda", convert(Float64, lambda))
   end
   if !ismissing(max_iterations)
-    CLISetParam("max_iterations", convert(Int, max_iterations))
+    IOSetParam("max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(no_intercept)
-    CLISetParam("no_intercept", convert(Bool, no_intercept))
+    IOSetParam("no_intercept", convert(Bool, no_intercept))
   end
   if !ismissing(number_of_classes)
-    CLISetParam("number_of_classes", convert(Int, number_of_classes))
+    IOSetParam("number_of_classes", convert(Int, number_of_classes))
   end
   if !ismissing(test)
-    CLISetParamMat("test", test, points_are_rows)
+    IOSetParamMat("test", test, points_are_rows)
   end
   if !ismissing(test_labels)
-    CLISetParamURow("test_labels", test_labels)
+    IOSetParamURow("test_labels", test_labels)
   end
   if !ismissing(training)
-    CLISetParamMat("training", training, points_are_rows)
+    IOSetParamMat("training", training, points_are_rows)
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output_model")
-  CLISetPassed("predictions")
+  IOSetPassed("output_model")
+  IOSetPassed("predictions")
   # Call the program.
   softmax_regression_mlpackMain()
 
-  return softmax_regression_internal.CLIGetParamSoftmaxRegression("output_model"),
-         CLIGetParamURow("predictions")
+  return softmax_regression_internal.IOGetParamSoftmaxRegression("output_model"),
+         IOGetParamURow("predictions")
 end

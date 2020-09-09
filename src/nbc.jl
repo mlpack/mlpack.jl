@@ -2,7 +2,7 @@ export nbc
 
 import ..NBCModel
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const nbcLibrary = mlpack_jll.libmlpack_julia_nbc
@@ -23,13 +23,13 @@ module nbc_internal
 import ...NBCModel
 
 # Get the value of a model pointer parameter of type NBCModel.
-function CLIGetParamNBCModel(paramName::String)::NBCModel
-  NBCModel(ccall((:CLI_GetParamNBCModelPtr, nbcLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamNBCModel(paramName::String)::NBCModel
+  NBCModel(ccall((:IO_GetParamNBCModelPtr, nbcLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type NBCModel.
-function CLISetParamNBCModel(paramName::String, model::NBCModel)
-  ccall((:CLI_SetParamNBCModelPtr, nbcLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamNBCModel(paramName::String, model::NBCModel)
+  ccall((:IO_SetParamNBCModelPtr, nbcLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -99,7 +99,7 @@ julia> predictions, _, _, _, _ = nbc(input_model=nbc_model,
  - `incremental_variance::Bool`: The variance of each class will be
       calculated incrementally.  Default value `false`.
       
- - `input_model::unknown_`: Input Naive Bayes model.
+ - `input_model::NBCModel`: Input Naive Bayes model.
  - `labels::Array{Int, 1}`: A file containing labels for the training
       set.
  - `test::Array{Float64, 2}`: A matrix containing the test set.
@@ -112,7 +112,7 @@ julia> predictions, _, _, _, _ = nbc(input_model=nbc_model,
 
  - `output::Array{Int, 1}`: The matrix in which the predicted labels for
       the test set will be written (deprecated).
- - `output_model::unknown_`: File to save trained Naive Bayes model to.
+ - `output_model::NBCModel`: File to save trained Naive Bayes model to.
  - `output_probs::Array{Float64, 2}`: The matrix in which the predicted
       probability of labels for the test set will be written (deprecated).
  - `predictions::Array{Int, 1}`: The matrix in which the predicted labels
@@ -132,41 +132,41 @@ function nbc(;
   # Force the symbols to load.
   ccall((:loadSymbols, nbcLibrary), Nothing, ());
 
-  CLIRestoreSettings("Parametric Naive Bayes Classifier")
+  IORestoreSettings("Parametric Naive Bayes Classifier")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(incremental_variance)
-    CLISetParam("incremental_variance", convert(Bool, incremental_variance))
+    IOSetParam("incremental_variance", convert(Bool, incremental_variance))
   end
   if !ismissing(input_model)
-    nbc_internal.CLISetParamNBCModel("input_model", convert(NBCModel, input_model))
+    nbc_internal.IOSetParamNBCModel("input_model", convert(NBCModel, input_model))
   end
   if !ismissing(labels)
-    CLISetParamURow("labels", labels)
+    IOSetParamURow("labels", labels)
   end
   if !ismissing(test)
-    CLISetParamMat("test", test, points_are_rows)
+    IOSetParamMat("test", test, points_are_rows)
   end
   if !ismissing(training)
-    CLISetParamMat("training", training, points_are_rows)
+    IOSetParamMat("training", training, points_are_rows)
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output")
-  CLISetPassed("output_model")
-  CLISetPassed("output_probs")
-  CLISetPassed("predictions")
-  CLISetPassed("probabilities")
+  IOSetPassed("output")
+  IOSetPassed("output_model")
+  IOSetPassed("output_probs")
+  IOSetPassed("predictions")
+  IOSetPassed("probabilities")
   # Call the program.
   nbc_mlpackMain()
 
-  return CLIGetParamURow("output"),
-         nbc_internal.CLIGetParamNBCModel("output_model"),
-         CLIGetParamMat("output_probs", points_are_rows),
-         CLIGetParamURow("predictions"),
-         CLIGetParamMat("probabilities", points_are_rows)
+  return IOGetParamURow("output"),
+         nbc_internal.IOGetParamNBCModel("output_model"),
+         IOGetParamMat("output_probs", points_are_rows),
+         IOGetParamURow("predictions"),
+         IOGetParamMat("probabilities", points_are_rows)
 end

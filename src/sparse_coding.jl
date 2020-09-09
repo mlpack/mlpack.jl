@@ -2,7 +2,7 @@ export sparse_coding
 
 import ..SparseCoding
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const sparse_codingLibrary = mlpack_jll.libmlpack_julia_sparse_coding
@@ -23,13 +23,13 @@ module sparse_coding_internal
 import ...SparseCoding
 
 # Get the value of a model pointer parameter of type SparseCoding.
-function CLIGetParamSparseCoding(paramName::String)::SparseCoding
-  SparseCoding(ccall((:CLI_GetParamSparseCodingPtr, sparse_codingLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamSparseCoding(paramName::String)::SparseCoding
+  SparseCoding(ccall((:IO_GetParamSparseCodingPtr, sparse_codingLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type SparseCoding.
-function CLISetParamSparseCoding(paramName::String, model::SparseCoding)
-  ccall((:CLI_SetParamSparseCodingPtr, sparse_codingLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamSparseCoding(paramName::String, model::SparseCoding)
+  ccall((:IO_SetParamSparseCodingPtr, sparse_codingLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -101,7 +101,8 @@ julia> codes, _, _ = sparse_coding(input_model=model,
 
  - `initial_dictionary::Array{Float64, 2}`: Optional initial dictionary
       matrix.
- - `input_model::unknown_`: File containing input sparse coding model.
+ - `input_model::SparseCoding`: File containing input sparse coding
+      model.
  - `lambda1::Float64`: Sparse coding l1-norm regularization parameter. 
       Default value `0`.
       
@@ -136,7 +137,8 @@ julia> codes, _, _ = sparse_coding(input_model=model,
       the test matrix (--test_file) to.
  - `dictionary::Array{Float64, 2}`: Matrix to save the output dictionary
       to.
- - `output_model::unknown_`: File to save trained sparse coding model to.
+ - `output_model::SparseCoding`: File to save trained sparse coding model
+      to.
 
 """
 function sparse_coding(;
@@ -157,58 +159,58 @@ function sparse_coding(;
   # Force the symbols to load.
   ccall((:loadSymbols, sparse_codingLibrary), Nothing, ());
 
-  CLIRestoreSettings("Sparse Coding")
+  IORestoreSettings("Sparse Coding")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(atoms)
-    CLISetParam("atoms", convert(Int, atoms))
+    IOSetParam("atoms", convert(Int, atoms))
   end
   if !ismissing(initial_dictionary)
-    CLISetParamMat("initial_dictionary", initial_dictionary, points_are_rows)
+    IOSetParamMat("initial_dictionary", initial_dictionary, points_are_rows)
   end
   if !ismissing(input_model)
-    sparse_coding_internal.CLISetParamSparseCoding("input_model", convert(SparseCoding, input_model))
+    sparse_coding_internal.IOSetParamSparseCoding("input_model", convert(SparseCoding, input_model))
   end
   if !ismissing(lambda1)
-    CLISetParam("lambda1", convert(Float64, lambda1))
+    IOSetParam("lambda1", convert(Float64, lambda1))
   end
   if !ismissing(lambda2)
-    CLISetParam("lambda2", convert(Float64, lambda2))
+    IOSetParam("lambda2", convert(Float64, lambda2))
   end
   if !ismissing(max_iterations)
-    CLISetParam("max_iterations", convert(Int, max_iterations))
+    IOSetParam("max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(newton_tolerance)
-    CLISetParam("newton_tolerance", convert(Float64, newton_tolerance))
+    IOSetParam("newton_tolerance", convert(Float64, newton_tolerance))
   end
   if !ismissing(normalize)
-    CLISetParam("normalize", convert(Bool, normalize))
+    IOSetParam("normalize", convert(Bool, normalize))
   end
   if !ismissing(objective_tolerance)
-    CLISetParam("objective_tolerance", convert(Float64, objective_tolerance))
+    IOSetParam("objective_tolerance", convert(Float64, objective_tolerance))
   end
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if !ismissing(test)
-    CLISetParamMat("test", test, points_are_rows)
+    IOSetParamMat("test", test, points_are_rows)
   end
   if !ismissing(training)
-    CLISetParamMat("training", training, points_are_rows)
+    IOSetParamMat("training", training, points_are_rows)
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("codes")
-  CLISetPassed("dictionary")
-  CLISetPassed("output_model")
+  IOSetPassed("codes")
+  IOSetPassed("dictionary")
+  IOSetPassed("output_model")
   # Call the program.
   sparse_coding_mlpackMain()
 
-  return CLIGetParamMat("codes", points_are_rows),
-         CLIGetParamMat("dictionary", points_are_rows),
-         sparse_coding_internal.CLIGetParamSparseCoding("output_model")
+  return IOGetParamMat("codes", points_are_rows),
+         IOGetParamMat("dictionary", points_are_rows),
+         sparse_coding_internal.IOGetParamSparseCoding("output_model")
 end

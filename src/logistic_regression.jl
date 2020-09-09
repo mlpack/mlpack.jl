@@ -2,7 +2,7 @@ export logistic_regression
 
 import ..LogisticRegression
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const logistic_regressionLibrary = mlpack_jll.libmlpack_julia_logistic_regression
@@ -23,13 +23,13 @@ module logistic_regression_internal
 import ...LogisticRegression
 
 # Get the value of a model pointer parameter of type LogisticRegression.
-function CLIGetParamLogisticRegression(paramName::String)::LogisticRegression
-  LogisticRegression(ccall((:CLI_GetParamLogisticRegressionPtr, logistic_regressionLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamLogisticRegression(paramName::String)::LogisticRegression
+  LogisticRegression(ccall((:IO_GetParamLogisticRegressionPtr, logistic_regressionLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type LogisticRegression.
-function CLISetParamLogisticRegression(paramName::String, model::LogisticRegression)
-  ccall((:CLI_SetParamLogisticRegressionPtr, logistic_regressionLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamLogisticRegression(paramName::String, model::LogisticRegression)
+  ccall((:IO_SetParamLogisticRegressionPtr, logistic_regressionLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -132,7 +132,7 @@ julia> predictions, _, _, _, _ =
       logistic function for a point is less than the boundary, the class is
       taken to be 0; otherwise, the class is 1.  Default value `0.5`.
       
- - `input_model::unknown_`: Existing model (parameters).
+ - `input_model::LogisticRegression`: Existing model (parameters).
  - `labels::Array{Int, 1}`: A matrix containing labels (0 or 1) for the
       points in the training set (y).
  - `lambda::Float64`: L2-regularization parameter for training.  Default
@@ -161,8 +161,8 @@ julia> predictions, _, _, _, _ =
 
  - `output::Array{Int, 1}`: If test data is specified, this matrix is
       where the predictions for the test set will be saved.
- - `output_model::unknown_`: Output for trained logistic regression
-      model.
+ - `output_model::LogisticRegression`: Output for trained logistic
+      regression model.
  - `output_probabilities::Array{Float64, 2}`: If test data is specified,
       this matrix is where the class probabilities for the test set will be
       saved.
@@ -189,59 +189,59 @@ function logistic_regression(;
   # Force the symbols to load.
   ccall((:loadSymbols, logistic_regressionLibrary), Nothing, ());
 
-  CLIRestoreSettings("L2-regularized Logistic Regression and Prediction")
+  IORestoreSettings("L2-regularized Logistic Regression and Prediction")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(batch_size)
-    CLISetParam("batch_size", convert(Int, batch_size))
+    IOSetParam("batch_size", convert(Int, batch_size))
   end
   if !ismissing(decision_boundary)
-    CLISetParam("decision_boundary", convert(Float64, decision_boundary))
+    IOSetParam("decision_boundary", convert(Float64, decision_boundary))
   end
   if !ismissing(input_model)
-    logistic_regression_internal.CLISetParamLogisticRegression("input_model", convert(LogisticRegression, input_model))
+    logistic_regression_internal.IOSetParamLogisticRegression("input_model", convert(LogisticRegression, input_model))
   end
   if !ismissing(labels)
-    CLISetParamURow("labels", labels)
+    IOSetParamURow("labels", labels)
   end
   if !ismissing(lambda)
-    CLISetParam("lambda", convert(Float64, lambda))
+    IOSetParam("lambda", convert(Float64, lambda))
   end
   if !ismissing(max_iterations)
-    CLISetParam("max_iterations", convert(Int, max_iterations))
+    IOSetParam("max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(optimizer)
-    CLISetParam("optimizer", convert(String, optimizer))
+    IOSetParam("optimizer", convert(String, optimizer))
   end
   if !ismissing(step_size)
-    CLISetParam("step_size", convert(Float64, step_size))
+    IOSetParam("step_size", convert(Float64, step_size))
   end
   if !ismissing(test)
-    CLISetParamMat("test", test, points_are_rows)
+    IOSetParamMat("test", test, points_are_rows)
   end
   if !ismissing(tolerance)
-    CLISetParam("tolerance", convert(Float64, tolerance))
+    IOSetParam("tolerance", convert(Float64, tolerance))
   end
   if !ismissing(training)
-    CLISetParamMat("training", training, points_are_rows)
+    IOSetParamMat("training", training, points_are_rows)
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output")
-  CLISetPassed("output_model")
-  CLISetPassed("output_probabilities")
-  CLISetPassed("predictions")
-  CLISetPassed("probabilities")
+  IOSetPassed("output")
+  IOSetPassed("output_model")
+  IOSetPassed("output_probabilities")
+  IOSetPassed("predictions")
+  IOSetPassed("probabilities")
   # Call the program.
   logistic_regression_mlpackMain()
 
-  return CLIGetParamURow("output"),
-         logistic_regression_internal.CLIGetParamLogisticRegression("output_model"),
-         CLIGetParamMat("output_probabilities", points_are_rows),
-         CLIGetParamURow("predictions"),
-         CLIGetParamMat("probabilities", points_are_rows)
+  return IOGetParamURow("output"),
+         logistic_regression_internal.IOGetParamLogisticRegression("output_model"),
+         IOGetParamMat("output_probabilities", points_are_rows),
+         IOGetParamURow("predictions"),
+         IOGetParamMat("probabilities", points_are_rows)
 end

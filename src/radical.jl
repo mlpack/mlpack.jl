@@ -1,7 +1,7 @@
 export radical
 
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const radicalLibrary = mlpack_jll.libmlpack_julia_radical
@@ -89,39 +89,39 @@ function radical(input;
   # Force the symbols to load.
   ccall((:loadSymbols, radicalLibrary), Nothing, ());
 
-  CLIRestoreSettings("RADICAL")
+  IORestoreSettings("RADICAL")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParamMat("input", input, points_are_rows)
+  IOSetParamMat("input", input, points_are_rows)
   if !ismissing(angles)
-    CLISetParam("angles", convert(Int, angles))
+    IOSetParam("angles", convert(Int, angles))
   end
   if !ismissing(noise_std_dev)
-    CLISetParam("noise_std_dev", convert(Float64, noise_std_dev))
+    IOSetParam("noise_std_dev", convert(Float64, noise_std_dev))
   end
   if !ismissing(objective)
-    CLISetParam("objective", convert(Bool, objective))
+    IOSetParam("objective", convert(Bool, objective))
   end
   if !ismissing(replicates)
-    CLISetParam("replicates", convert(Int, replicates))
+    IOSetParam("replicates", convert(Int, replicates))
   end
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if !ismissing(sweeps)
-    CLISetParam("sweeps", convert(Int, sweeps))
+    IOSetParam("sweeps", convert(Int, sweeps))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output_ic")
-  CLISetPassed("output_unmixing")
+  IOSetPassed("output_ic")
+  IOSetPassed("output_unmixing")
   # Call the program.
   radical_mlpackMain()
 
-  return CLIGetParamMat("output_ic", points_are_rows),
-         CLIGetParamMat("output_unmixing", points_are_rows)
+  return IOGetParamMat("output_ic", points_are_rows),
+         IOGetParamMat("output_unmixing", points_are_rows)
 end

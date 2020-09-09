@@ -2,7 +2,7 @@ export knn
 
 import ..KNNModel
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const knnLibrary = mlpack_jll.libmlpack_julia_knn
@@ -23,13 +23,13 @@ module knn_internal
 import ...KNNModel
 
 # Get the value of a model pointer parameter of type KNNModel.
-function CLIGetParamKNNModel(paramName::String)::KNNModel
-  KNNModel(ccall((:CLI_GetParamKNNModelPtr, knnLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamKNNModel(paramName::String)::KNNModel
+  KNNModel(ccall((:IO_GetParamKNNModelPtr, knnLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type KNNModel.
-function CLISetParamKNNModel(paramName::String, model::KNNModel)
-  ccall((:CLI_SetParamKNNModelPtr, knnLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamKNNModel(paramName::String, model::KNNModel)
+  ccall((:IO_SetParamKNNModelPtr, knnLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -78,7 +78,7 @@ those two points.
  - `epsilon::Float64`: If specified, will do approximate nearest neighbor
       search with given relative error.  Default value `0`.
       
- - `input_model::unknown_`: Pre-trained kNN model.
+ - `input_model::KNNModel`: Pre-trained kNN model.
  - `k::Int`: Number of nearest neighbors to find.  Default value `0`.
 
  - `leaf_size::Int`: Leaf size for tree building (used for kd-trees, vp
@@ -118,7 +118,7 @@ those two points.
 
  - `distances::Array{Float64, 2}`: Matrix to output distances into.
  - `neighbors::Array{Int, 2}`: Matrix to output neighbors into.
- - `output_model::unknown_`: If specified, the kNN model will be output
+ - `output_model::KNNModel`: If specified, the kNN model will be output
       here.
 
 """
@@ -142,64 +142,64 @@ function knn(;
   # Force the symbols to load.
   ccall((:loadSymbols, knnLibrary), Nothing, ());
 
-  CLIRestoreSettings("k-Nearest-Neighbors Search")
+  IORestoreSettings("k-Nearest-Neighbors Search")
 
   # Process each input argument before calling mlpackMain().
   if !ismissing(algorithm)
-    CLISetParam("algorithm", convert(String, algorithm))
+    IOSetParam("algorithm", convert(String, algorithm))
   end
   if !ismissing(epsilon)
-    CLISetParam("epsilon", convert(Float64, epsilon))
+    IOSetParam("epsilon", convert(Float64, epsilon))
   end
   if !ismissing(input_model)
-    knn_internal.CLISetParamKNNModel("input_model", convert(KNNModel, input_model))
+    knn_internal.IOSetParamKNNModel("input_model", convert(KNNModel, input_model))
   end
   if !ismissing(k)
-    CLISetParam("k", convert(Int, k))
+    IOSetParam("k", convert(Int, k))
   end
   if !ismissing(leaf_size)
-    CLISetParam("leaf_size", convert(Int, leaf_size))
+    IOSetParam("leaf_size", convert(Int, leaf_size))
   end
   if !ismissing(query)
-    CLISetParamMat("query", query, points_are_rows)
+    IOSetParamMat("query", query, points_are_rows)
   end
   if !ismissing(random_basis)
-    CLISetParam("random_basis", convert(Bool, random_basis))
+    IOSetParam("random_basis", convert(Bool, random_basis))
   end
   if !ismissing(reference)
-    CLISetParamMat("reference", reference, points_are_rows)
+    IOSetParamMat("reference", reference, points_are_rows)
   end
   if !ismissing(rho)
-    CLISetParam("rho", convert(Float64, rho))
+    IOSetParam("rho", convert(Float64, rho))
   end
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if !ismissing(tau)
-    CLISetParam("tau", convert(Float64, tau))
+    IOSetParam("tau", convert(Float64, tau))
   end
   if !ismissing(tree_type)
-    CLISetParam("tree_type", convert(String, tree_type))
+    IOSetParam("tree_type", convert(String, tree_type))
   end
   if !ismissing(true_distances)
-    CLISetParamMat("true_distances", true_distances, points_are_rows)
+    IOSetParamMat("true_distances", true_distances, points_are_rows)
   end
   if !ismissing(true_neighbors)
-    CLISetParamUMat("true_neighbors", true_neighbors, points_are_rows)
+    IOSetParamUMat("true_neighbors", true_neighbors, points_are_rows)
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("distances")
-  CLISetPassed("neighbors")
-  CLISetPassed("output_model")
+  IOSetPassed("distances")
+  IOSetPassed("neighbors")
+  IOSetPassed("output_model")
   # Call the program.
   knn_mlpackMain()
 
-  return CLIGetParamMat("distances", points_are_rows),
-         CLIGetParamUMat("neighbors", points_are_rows),
-         knn_internal.CLIGetParamKNNModel("output_model")
+  return IOGetParamMat("distances", points_are_rows),
+         IOGetParamUMat("neighbors", points_are_rows),
+         knn_internal.IOGetParamKNNModel("output_model")
 end

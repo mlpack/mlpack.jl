@@ -1,7 +1,7 @@
 export preprocess_describe
 
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const preprocess_describeLibrary = mlpack_jll.libmlpack_julia_preprocess_describe
@@ -93,29 +93,29 @@ function preprocess_describe(input;
   # Force the symbols to load.
   ccall((:loadSymbols, preprocess_describeLibrary), Nothing, ());
 
-  CLIRestoreSettings("Descriptive Statistics")
+  IORestoreSettings("Descriptive Statistics")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParamMat("input", input, points_are_rows)
+  IOSetParamMat("input", input, points_are_rows)
   if !ismissing(dimension)
-    CLISetParam("dimension", convert(Int, dimension))
+    IOSetParam("dimension", convert(Int, dimension))
   end
   if !ismissing(population)
-    CLISetParam("population", convert(Bool, population))
+    IOSetParam("population", convert(Bool, population))
   end
   if !ismissing(precision)
-    CLISetParam("precision", convert(Int, precision))
+    IOSetParam("precision", convert(Int, precision))
   end
   if !ismissing(row_major)
-    CLISetParam("row_major", convert(Bool, row_major))
+    IOSetParam("row_major", convert(Bool, row_major))
   end
   if !ismissing(width)
-    CLISetParam("width", convert(Int, width))
+    IOSetParam("width", convert(Int, width))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
   # Call the program.

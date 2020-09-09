@@ -1,7 +1,7 @@
 export pca
 
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const pcaLibrary = mlpack_jll.libmlpack_julia_pca
@@ -87,31 +87,31 @@ function pca(input;
   # Force the symbols to load.
   ccall((:loadSymbols, pcaLibrary), Nothing, ());
 
-  CLIRestoreSettings("Principal Components Analysis")
+  IORestoreSettings("Principal Components Analysis")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParamMat("input", input, points_are_rows)
+  IOSetParamMat("input", input, points_are_rows)
   if !ismissing(decomposition_method)
-    CLISetParam("decomposition_method", convert(String, decomposition_method))
+    IOSetParam("decomposition_method", convert(String, decomposition_method))
   end
   if !ismissing(new_dimensionality)
-    CLISetParam("new_dimensionality", convert(Int, new_dimensionality))
+    IOSetParam("new_dimensionality", convert(Int, new_dimensionality))
   end
   if !ismissing(scale)
-    CLISetParam("scale", convert(Bool, scale))
+    IOSetParam("scale", convert(Bool, scale))
   end
   if !ismissing(var_to_retain)
-    CLISetParam("var_to_retain", convert(Float64, var_to_retain))
+    IOSetParam("var_to_retain", convert(Float64, var_to_retain))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output")
+  IOSetPassed("output")
   # Call the program.
   pca_mlpackMain()
 
-  return CLIGetParamMat("output", points_are_rows)
+  return IOGetParamMat("output", points_are_rows)
 end

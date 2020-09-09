@@ -8,6 +8,10 @@ struct ApproxKFNModel
   ptr::Ptr{Nothing}
 end
 
+struct BayesianLinearRegression
+  ptr::Ptr{Nothing}
+end
+
 struct CFModel
   ptr::Ptr{Nothing}
 end
@@ -37,6 +41,10 @@ struct HMMModel
 end
 
 struct HoeffdingTreeModel
+  ptr::Ptr{Nothing}
+end
+
+struct KDEModel
   ptr::Ptr{Nothing}
 end
 

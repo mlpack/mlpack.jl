@@ -1,7 +1,7 @@
 export emst
 
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const emstLibrary = mlpack_jll.libmlpack_julia_emst
@@ -78,25 +78,25 @@ function emst(input;
   # Force the symbols to load.
   ccall((:loadSymbols, emstLibrary), Nothing, ());
 
-  CLIRestoreSettings("Fast Euclidean Minimum Spanning Tree")
+  IORestoreSettings("Fast Euclidean Minimum Spanning Tree")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParamMat("input", input, points_are_rows)
+  IOSetParamMat("input", input, points_are_rows)
   if !ismissing(leaf_size)
-    CLISetParam("leaf_size", convert(Int, leaf_size))
+    IOSetParam("leaf_size", convert(Int, leaf_size))
   end
   if !ismissing(naive)
-    CLISetParam("naive", convert(Bool, naive))
+    IOSetParam("naive", convert(Bool, naive))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output")
+  IOSetPassed("output")
   # Call the program.
   emst_mlpackMain()
 
-  return CLIGetParamMat("output", points_are_rows)
+  return IOGetParamMat("output", points_are_rows)
 end

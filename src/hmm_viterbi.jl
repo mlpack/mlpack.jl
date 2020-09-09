@@ -2,7 +2,7 @@ export hmm_viterbi
 
 import ..HMMModel
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const hmm_viterbiLibrary = mlpack_jll.libmlpack_julia_hmm_viterbi
@@ -23,13 +23,13 @@ module hmm_viterbi_internal
 import ...HMMModel
 
 # Get the value of a model pointer parameter of type HMMModel.
-function CLIGetParamHMMModel(paramName::String)::HMMModel
-  HMMModel(ccall((:CLI_GetParamHMMModelPtr, hmm_viterbiLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamHMMModel(paramName::String)::HMMModel
+  HMMModel(ccall((:IO_GetParamHMMModelPtr, hmm_viterbiLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type HMMModel.
-function CLISetParamHMMModel(paramName::String, model::HMMModel)
-  ccall((:CLI_SetParamHMMModelPtr, hmm_viterbiLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamHMMModel(paramName::String, model::HMMModel)
+  ccall((:IO_SetParamHMMModelPtr, hmm_viterbiLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -67,7 +67,7 @@ julia> states = hmm_viterbi(obs, hmm)
 # Arguments
 
  - `input::Array{Float64, 2}`: Matrix containing observations,
- - `input_model::unknown_`: Trained HMM to use.
+ - `input_model::HMMModel`: Trained HMM to use.
  - `verbose::Bool`: Display informational messages and the full list of
       parameters and timers at the end of execution.  Default value `false`.
       
@@ -84,20 +84,20 @@ function hmm_viterbi(input,
   # Force the symbols to load.
   ccall((:loadSymbols, hmm_viterbiLibrary), Nothing, ());
 
-  CLIRestoreSettings("Hidden Markov Model (HMM) Viterbi State Prediction")
+  IORestoreSettings("Hidden Markov Model (HMM) Viterbi State Prediction")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParamMat("input", input, points_are_rows)
-  hmm_viterbi_internal.CLISetParamHMMModel("input_model", convert(HMMModel, input_model))
+  IOSetParamMat("input", input, points_are_rows)
+  hmm_viterbi_internal.IOSetParamHMMModel("input_model", convert(HMMModel, input_model))
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output")
+  IOSetPassed("output")
   # Call the program.
   hmm_viterbi_mlpackMain()
 
-  return CLIGetParamUMat("output", points_are_rows)
+  return IOGetParamUMat("output", points_are_rows)
 end

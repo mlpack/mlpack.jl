@@ -1,7 +1,7 @@
 export preprocess_split
 
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const preprocess_splitLibrary = mlpack_jll.libmlpack_julia_preprocess_split
@@ -104,37 +104,37 @@ function preprocess_split(input;
   # Force the symbols to load.
   ccall((:loadSymbols, preprocess_splitLibrary), Nothing, ());
 
-  CLIRestoreSettings("Split Data")
+  IORestoreSettings("Split Data")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParamMat("input", input, points_are_rows)
+  IOSetParamMat("input", input, points_are_rows)
   if !ismissing(input_labels)
-    CLISetParamUMat("input_labels", input_labels, points_are_rows)
+    IOSetParamUMat("input_labels", input_labels, points_are_rows)
   end
   if !ismissing(no_shuffle)
-    CLISetParam("no_shuffle", convert(Bool, no_shuffle))
+    IOSetParam("no_shuffle", convert(Bool, no_shuffle))
   end
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if !ismissing(test_ratio)
-    CLISetParam("test_ratio", convert(Float64, test_ratio))
+    IOSetParam("test_ratio", convert(Float64, test_ratio))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("test")
-  CLISetPassed("test_labels")
-  CLISetPassed("training")
-  CLISetPassed("training_labels")
+  IOSetPassed("test")
+  IOSetPassed("test_labels")
+  IOSetPassed("training")
+  IOSetPassed("training_labels")
   # Call the program.
   preprocess_split_mlpackMain()
 
-  return CLIGetParamMat("test", points_are_rows),
-         CLIGetParamUMat("test_labels", points_are_rows),
-         CLIGetParamMat("training", points_are_rows),
-         CLIGetParamUMat("training_labels", points_are_rows)
+  return IOGetParamMat("test", points_are_rows),
+         IOGetParamUMat("test_labels", points_are_rows),
+         IOGetParamMat("training", points_are_rows),
+         IOGetParamUMat("training_labels", points_are_rows)
 end

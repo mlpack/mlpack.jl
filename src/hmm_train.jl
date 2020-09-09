@@ -2,7 +2,7 @@ export hmm_train
 
 import ..HMMModel
 
-using mlpack._Internal.cli
+using mlpack._Internal.io
 
 import mlpack_jll
 const hmm_trainLibrary = mlpack_jll.libmlpack_julia_hmm_train
@@ -23,13 +23,13 @@ module hmm_train_internal
 import ...HMMModel
 
 # Get the value of a model pointer parameter of type HMMModel.
-function CLIGetParamHMMModel(paramName::String)::HMMModel
-  HMMModel(ccall((:CLI_GetParamHMMModelPtr, hmm_trainLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function IOGetParamHMMModel(paramName::String)::HMMModel
+  HMMModel(ccall((:IO_GetParamHMMModelPtr, hmm_trainLibrary), Ptr{Nothing}, (Cstring,), paramName))
 end
 
 # Set the value of a model pointer parameter of type HMMModel.
-function CLISetParamHMMModel(paramName::String, model::HMMModel)
-  ccall((:CLI_SetParamHMMModelPtr, hmm_trainLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function IOSetParamHMMModel(paramName::String, model::HMMModel)
+  ccall((:IO_SetParamHMMModelPtr, hmm_trainLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
 end
 
 # Serialize a model to the given stream.
@@ -53,20 +53,20 @@ This program allows a Hidden Markov Model to be trained on labeled or unlabeled
 data.  It supports four types of HMMs: Discrete HMMs, Gaussian HMMs, GMM HMMs,
 or Diagonal GMM HMMs
 
-Either one input sequence can be specified (with --input_file), or, a file
-containing files in which input sequences can be found (when --input_file and
---batch are used together).  In addition, labels can be provided in the file
-specified by --labels_file, and if --batch is used, the file given to
---labels_file should contain a list of files of labels corresponding to the
-sequences in the file given to --input_file.
+Either one input sequence can be specified (with `input_file`), or, a file
+containing files in which input sequences can be found (when
+`input_file`and`batch` are used together).  In addition, labels can be provided
+in the file specified by `labels_file`, and if `batch` is used, the file given
+to `labels_file` should contain a list of files of labels corresponding to the
+sequences in the file given to `input_file`.
 
 The HMM is trained with the Baum-Welch algorithm if no labels are provided.  The
-tolerance of the Baum-Welch algorithm can be set with the --tolerance option. 
-By default, the transition matrix is randomly initialized and the emission
+tolerance of the Baum-Welch algorithm can be set with the `tolerance`option.  By
+default, the transition matrix is randomly initialized and the emission
 distributions are initialized to fit the extent of the data.
 
 Optionally, a pre-created HMM model can be used as a guess for the transition
-matrix and emission probabilities; this is specifiable with --model_file.
+matrix and emission probabilities; this is specifiable with `output_model`.
 
 # Arguments
 
@@ -78,7 +78,7 @@ matrix and emission probabilities; this is specifiable with --model_file.
  - `gaussians::Int`: Number of gaussians in each GMM (necessary when type
       is 'gmm').  Default value `0`.
       
- - `input_model::unknown_`: Pre-existing HMM model to initialize training
+ - `input_model::HMMModel`: Pre-existing HMM model to initialize training
       with.
  - `labels_file::String`: Optional file of hidden states, used for labeled
       training.  Default value ``.
@@ -101,7 +101,7 @@ matrix and emission probabilities; this is specifiable with --model_file.
 
 # Return values
 
- - `output_model::unknown_`: Output for trained HMM.
+ - `output_model::HMMModel`: Output for trained HMM.
 
 """
 function hmm_train(input_file::String;
@@ -118,43 +118,43 @@ function hmm_train(input_file::String;
   # Force the symbols to load.
   ccall((:loadSymbols, hmm_trainLibrary), Nothing, ());
 
-  CLIRestoreSettings("Hidden Markov Model (HMM) Training")
+  IORestoreSettings("Hidden Markov Model (HMM) Training")
 
   # Process each input argument before calling mlpackMain().
-  CLISetParam("input_file", input_file)
+  IOSetParam("input_file", input_file)
   if !ismissing(batch)
-    CLISetParam("batch", convert(Bool, batch))
+    IOSetParam("batch", convert(Bool, batch))
   end
   if !ismissing(gaussians)
-    CLISetParam("gaussians", convert(Int, gaussians))
+    IOSetParam("gaussians", convert(Int, gaussians))
   end
   if !ismissing(input_model)
-    hmm_train_internal.CLISetParamHMMModel("input_model", convert(HMMModel, input_model))
+    hmm_train_internal.IOSetParamHMMModel("input_model", convert(HMMModel, input_model))
   end
   if !ismissing(labels_file)
-    CLISetParam("labels_file", convert(String, labels_file))
+    IOSetParam("labels_file", convert(String, labels_file))
   end
   if !ismissing(seed)
-    CLISetParam("seed", convert(Int, seed))
+    IOSetParam("seed", convert(Int, seed))
   end
   if !ismissing(states)
-    CLISetParam("states", convert(Int, states))
+    IOSetParam("states", convert(Int, states))
   end
   if !ismissing(tolerance)
-    CLISetParam("tolerance", convert(Float64, tolerance))
+    IOSetParam("tolerance", convert(Float64, tolerance))
   end
   if !ismissing(type_)
-    CLISetParam("type", convert(String, type_))
+    IOSetParam("type", convert(String, type_))
   end
   if verbose !== nothing && verbose === true
-    CLIEnableVerbose()
+    IOEnableVerbose()
   else
-    CLIDisableVerbose()
+    IODisableVerbose()
   end
 
-  CLISetPassed("output_model")
+  IOSetPassed("output_model")
   # Call the program.
   hmm_train_mlpackMain()
 
-  return hmm_train_internal.CLIGetParamHMMModel("output_model")
+  return hmm_train_internal.IOGetParamHMMModel("output_model")
 end
