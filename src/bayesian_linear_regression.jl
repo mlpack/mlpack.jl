@@ -98,8 +98,9 @@ julia> _, test_predictions, _ =
             bayesian_linear_regression(input_model=blr_model, test=test)
 ```
 
-Because the estimator computes a predictive distribution instead of simple point
-estimate, the `stds` parameter allows to save the prediction uncertainties: 
+Because the estimator computes a predictive distribution instead of a simple
+point estimate, the `stds` parameter allows one to save the prediction
+uncertainties: 
 
 ```julia
 julia> using CSV
