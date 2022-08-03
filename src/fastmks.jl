@@ -35,14 +35,14 @@ end
 # Serialize a model to the given stream.
 function serializeFastMKSModel(stream::IO, model::FastMKSModel)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeFastMKSModelPtr, fastmksLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeFastMKSModelPtr, fastmksLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeFastMKSModel(stream::IO)::FastMKSModel
   buffer = read(stream)
-  FastMKSModel(ccall((:DeserializeFastMKSModelPtr, fastmksLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  GC.@preserve buffer FastMKSModel(ccall((:DeserializeFastMKSModelPtr, fastmksLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 

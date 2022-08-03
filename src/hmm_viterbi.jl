@@ -35,14 +35,14 @@ end
 # Serialize a model to the given stream.
 function serializeHMMModel(stream::IO, model::HMMModel)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeHMMModelPtr, hmm_viterbiLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeHMMModelPtr, hmm_viterbiLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeHMMModel(stream::IO)::HMMModel
   buffer = read(stream)
-  HMMModel(ccall((:DeserializeHMMModelPtr, hmm_viterbiLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  GC.@preserve buffer HMMModel(ccall((:DeserializeHMMModelPtr, hmm_viterbiLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 

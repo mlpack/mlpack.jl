@@ -35,14 +35,14 @@ end
 # Serialize a model to the given stream.
 function serializeGMM(stream::IO, model::GMM)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeGMMPtr, gmm_probabilityLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeGMMPtr, gmm_probabilityLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeGMM(stream::IO)::GMM
   buffer = read(stream)
-  GMM(ccall((:DeserializeGMMPtr, gmm_probabilityLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  GC.@preserve buffer GMM(ccall((:DeserializeGMMPtr, gmm_probabilityLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 

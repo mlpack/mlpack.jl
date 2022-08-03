@@ -35,14 +35,14 @@ end
 # Serialize a model to the given stream.
 function serializeLocalCoordinateCoding(stream::IO, model::LocalCoordinateCoding)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeLocalCoordinateCoding(stream::IO)::LocalCoordinateCoding
   buffer = read(stream)
-  LocalCoordinateCoding(ccall((:DeserializeLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  GC.@preserve buffer LocalCoordinateCoding(ccall((:DeserializeLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 

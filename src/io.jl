@@ -90,8 +90,8 @@ function IOSetParamMat(paramName::String,
                         paramValue,
                         pointsAsRows::Bool)
   paramMat = to_matrix(paramValue, Float64)
-  ccall((:IO_SetParamMat, library), Nothing, (Cstring, Ptr{Float64}, Csize_t,
-      Csize_t, Bool), paramName, Base.pointer(paramMat), size(paramMat, 1),
+  GC.@preserve paramMat ccall((:IO_SetParamMat, library), Nothing, (Cstring, Ptr{Float64}, Csize_t,
+      Csize_t, Bool), paramName, pointer(paramMat), size(paramMat, 1),
       size(paramMat, 2), pointsAsRows);
 end
 
@@ -107,8 +107,8 @@ function IOSetParamUMat(paramName::String,
   end
 
   m = convert(Array{Csize_t, 2}, paramMat .- 1)
-  ccall((:IO_SetParamUMat, library), Nothing, (Cstring, Ptr{Csize_t}, Csize_t,
-      Csize_t, Bool), paramName, Base.pointer(m), size(paramValue, 1),
+  GC.@preserve m ccall((:IO_SetParamUMat, library), Nothing, (Cstring, Ptr{Csize_t}, Csize_t,
+      Csize_t, Bool), paramName, pointer(m), size(paramValue, 1),
       size(paramValue, 2), pointsAsRows);
 end
 
@@ -129,31 +129,31 @@ end
 function IOSetParam(paramName::String,
                      vector::Vector{Int})
   cint_vec = convert(Vector{Cint}, vector)
-  ccall((:IO_SetParamVectorInt, library), Nothing, (Cstring, Ptr{Cint},
-      Csize_t), paramName, Base.pointer(cint_vec), size(cint_vec, 1));
+  GC.@preserve cint_vec ccall((:IO_SetParamVectorInt, library), Nothing, (Cstring, Ptr{Cint},
+      Csize_t), paramName, pointer(cint_vec), size(cint_vec, 1));
 end
 
 function IOSetParam(paramName::String,
                      matWithInfo::Tuple{Array{Bool, 1}, Array{Float64, 2}},
                      pointsAsRows::Bool)
-  ccall((:IO_SetParamMatWithInfo, library), Nothing, (Cstring, Ptr{Bool},
+  GC.@preserve matWithInfo ccall((:IO_SetParamMatWithInfo, library), Nothing, (Cstring, Ptr{Bool},
       Ptr{Float64}, Int, Int, Bool), paramName,
-      Base.pointer(matWithInfo[1]), Base.pointer(matWithInfo[2]),
+      pointer(matWithInfo[1]), pointer(matWithInfo[2]),
       size(matWithInfo[2], 1), size(matWithInfo[2], 2), pointsAsRows);
 end
 
 function IOSetParamRow(paramName::String,
                         paramValue)
   paramVec = to_vector(paramValue, Float64)
-  ccall((:IO_SetParamRow, library), Nothing, (Cstring, Ptr{Float64}, Csize_t),
-      paramName, Base.pointer(paramVec), size(paramVec, 1));
+  GC.@preserve paramVec ccall((:IO_SetParamRow, library), Nothing, (Cstring, Ptr{Float64}, Csize_t),
+      paramName, pointer(paramVec), size(paramVec, 1));
 end
 
 function IOSetParamCol(paramName::String,
                         paramValue)
   paramVec = to_vector(paramValue, Float64)
-  ccall((:IO_SetParamCol, library), Nothing, (Cstring, Ptr{Float64}, Csize_t),
-      paramName, Base.pointer(paramVec), size(paramVec, 1));
+  GC.@preserve paramVec ccall((:IO_SetParamCol, library), Nothing, (Cstring, Ptr{Float64}, Csize_t),
+      paramName, pointer(paramVec), size(paramVec, 1));
 end
 
 function IOSetParamURow(paramName::String,
@@ -167,8 +167,8 @@ function IOSetParamURow(paramName::String,
   end
   m = convert(Array{Csize_t, 1}, paramVec .- 1)
 
-  ccall((:IO_SetParamURow, library), Nothing, (Cstring, Ptr{Csize_t}, Csize_t),
-      paramName, Base.pointer(m), size(paramValue, 1));
+  GC.@preserve m ccall((:IO_SetParamURow, library), Nothing, (Cstring, Ptr{Csize_t}, Csize_t),
+      paramName, pointer(m), size(paramValue, 1));
 end
 
 function IOSetParamUCol(paramName::String,
@@ -182,8 +182,8 @@ function IOSetParamUCol(paramName::String,
   end
   m = convert(Array{Csize_t, 1}, paramValue .- 1)
 
-  ccall((:IO_SetParamUCol, library), Nothing, (Cstring, Ptr{Csize_t}, Csize_t),
-      paramName, Base.pointer(m), size(paramValue, 1));
+  GC.@preserve m ccall((:IO_SetParamUCol, library), Nothing, (Cstring, Ptr{Csize_t}, Csize_t),
+      paramName, pointer(m), size(paramValue, 1));
 end
 
 function IOGetParamBool(paramName::String)

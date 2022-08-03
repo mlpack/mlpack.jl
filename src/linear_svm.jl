@@ -35,14 +35,14 @@ end
 # Serialize a model to the given stream.
 function serializeLinearSVMModel(stream::IO, model::LinearSVMModel)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeLinearSVMModelPtr, linear_svmLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeLinearSVMModelPtr, linear_svmLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeLinearSVMModel(stream::IO)::LinearSVMModel
   buffer = read(stream)
-  LinearSVMModel(ccall((:DeserializeLinearSVMModelPtr, linear_svmLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  GC.@preserve buffer LinearSVMModel(ccall((:DeserializeLinearSVMModelPtr, linear_svmLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 

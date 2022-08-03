@@ -35,14 +35,14 @@ end
 # Serialize a model to the given stream.
 function serializeSparseCoding(stream::IO, model::SparseCoding)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeSparseCodingPtr, sparse_codingLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeSparseCodingPtr, sparse_codingLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeSparseCoding(stream::IO)::SparseCoding
   buffer = read(stream)
-  SparseCoding(ccall((:DeserializeSparseCodingPtr, sparse_codingLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  GC.@preserve buffer SparseCoding(ccall((:DeserializeSparseCodingPtr, sparse_codingLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
