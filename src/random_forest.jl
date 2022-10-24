@@ -2,14 +2,14 @@ export random_forest
 
 import ..RandomForestModel
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const random_forestLibrary = mlpack_jll.libmlpack_julia_random_forest
 
 # Call the C binding of the mlpack random_forest binding.
-function random_forest_mlpackMain()
-  success = ccall((:random_forest, random_forestLibrary), Bool, ())
+function call_random_forest(p, t)
+  success = ccall((:mlpack_random_forest, random_forestLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,31 +23,39 @@ module random_forest_internal
 import ...RandomForestModel
 
 # Get the value of a model pointer parameter of type RandomForestModel.
-function IOGetParamRandomForestModel(paramName::String)::RandomForestModel
-  RandomForestModel(ccall((:IO_GetParamRandomForestModelPtr, random_forestLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamRandomForestModel(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::RandomForestModel
+  ptr = ccall((:GetParamRandomForestModelPtr, random_forestLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return RandomForestModel(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type RandomForestModel.
-function IOSetParamRandomForestModel(paramName::String, model::RandomForestModel)
-  ccall((:IO_SetParamRandomForestModelPtr, random_forestLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamRandomForestModel(params::Ptr{Nothing}, paramName::String, model::RandomForestModel)
+  ccall((:SetParamRandomForestModelPtr, random_forestLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteRandomForestModel(ptr::Ptr{Nothing})
+  ccall((:DeleteRandomForestModelPtr, random_forestLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeRandomForestModel(stream::IO, model::RandomForestModel)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeRandomForestModelPtr, random_forestLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeRandomForestModelPtr, random_forestLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeRandomForestModel(stream::IO)::RandomForestModel
-  buffer = read(stream)
-  RandomForestModel(ccall((:DeserializeRandomForestModelPtr, random_forestLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer RandomForestModel(ccall((:DeserializeRandomForestModelPtr, random_forestLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
 """
-    random_forest(; [input_model, labels, maximum_depth, minimum_gain_split, minimum_leaf_size, num_trees, print_training_accuracy, seed, subspace_dim, test, test_labels, training, verbose])
+    random_forest(; [input_model, labels, maximum_depth, minimum_gain_split, minimum_leaf_size, num_trees, print_training_accuracy, seed, subspace_dim, test, test_labels, training, verbose, warm_start])
 
 This program is an implementation of the standard random forest classification
 algorithm by Leo Breiman.  A random forest can be trained and saved for later
@@ -138,6 +146,10 @@ julia> _, predictions, _ = random_forest(input_model=rf_model,
  - `verbose::Bool`: Display informational messages and the full list of
       parameters and timers at the end of execution.  Default value `false`.
       
+ - `warm_start::Bool`: If true and passed along with `training` and
+      `input_model` then trains more trees on top of existing model.  Default
+      value `false`.
+      
 
 # Return values
 
@@ -163,62 +175,78 @@ function random_forest(;
                        test_labels = missing,
                        training = missing,
                        verbose::Union{Bool, Missing} = missing,
+                       warm_start::Union{Bool, Missing} = missing,
                        points_are_rows::Bool = true)
   # Force the symbols to load.
   ccall((:loadSymbols, random_forestLibrary), Nothing, ());
 
-  IORestoreSettings("Random forests")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("random_forest")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(input_model)
-    random_forest_internal.IOSetParamRandomForestModel("input_model", convert(RandomForestModel, input_model))
+    push!(modelPtrs, convert(RandomForestModel, input_model).ptr)
+    random_forest_internal.SetParamRandomForestModel(p, "input_model", convert(RandomForestModel, input_model))
   end
   if !ismissing(labels)
-    IOSetParamURow("labels", labels)
+    SetParamURow(p, "labels", labels, juliaOwnedMemory)
   end
   if !ismissing(maximum_depth)
-    IOSetParam("maximum_depth", convert(Int, maximum_depth))
+    SetParam(p, "maximum_depth", convert(Int, maximum_depth))
   end
   if !ismissing(minimum_gain_split)
-    IOSetParam("minimum_gain_split", convert(Float64, minimum_gain_split))
+    SetParam(p, "minimum_gain_split", convert(Float64, minimum_gain_split))
   end
   if !ismissing(minimum_leaf_size)
-    IOSetParam("minimum_leaf_size", convert(Int, minimum_leaf_size))
+    SetParam(p, "minimum_leaf_size", convert(Int, minimum_leaf_size))
   end
   if !ismissing(num_trees)
-    IOSetParam("num_trees", convert(Int, num_trees))
+    SetParam(p, "num_trees", convert(Int, num_trees))
   end
   if !ismissing(print_training_accuracy)
-    IOSetParam("print_training_accuracy", convert(Bool, print_training_accuracy))
+    SetParam(p, "print_training_accuracy", convert(Bool, print_training_accuracy))
   end
   if !ismissing(seed)
-    IOSetParam("seed", convert(Int, seed))
+    SetParam(p, "seed", convert(Int, seed))
   end
   if !ismissing(subspace_dim)
-    IOSetParam("subspace_dim", convert(Int, subspace_dim))
+    SetParam(p, "subspace_dim", convert(Int, subspace_dim))
   end
   if !ismissing(test)
-    IOSetParamMat("test", test, points_are_rows)
+    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(test_labels)
-    IOSetParamURow("test_labels", test_labels)
+    SetParamURow(p, "test_labels", test_labels, juliaOwnedMemory)
   end
   if !ismissing(training)
-    IOSetParamMat("training", training, points_are_rows)
+    SetParamMat(p, "training", training, points_are_rows, juliaOwnedMemory)
+  end
+  if !ismissing(warm_start)
+    SetParam(p, "warm_start", convert(Bool, warm_start))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output_model")
-  IOSetPassed("predictions")
-  IOSetPassed("probabilities")
+  SetPassed(p, "output_model")
+  SetPassed(p, "predictions")
+  SetPassed(p, "probabilities")
   # Call the program.
-  random_forest_mlpackMain()
+  call_random_forest(p, t)
 
-  return random_forest_internal.IOGetParamRandomForestModel("output_model"),
-         IOGetParamURow("predictions"),
-         IOGetParamMat("probabilities", points_are_rows)
+  results = (random_forest_internal.GetParamRandomForestModel(p, "output_model", modelPtrs),
+             GetParamURow(p, "predictions", juliaOwnedMemory),
+             GetParamMat(p, "probabilities", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

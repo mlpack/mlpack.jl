@@ -1,14 +1,14 @@
 export pca
 
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const pcaLibrary = mlpack_jll.libmlpack_julia_pca
 
 # Call the C binding of the mlpack pca binding.
-function pca_mlpackMain()
-  success = ccall((:pca, pcaLibrary), Bool, ())
+function call_pca(p, t)
+  success = ccall((:mlpack_pca, pcaLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -87,31 +87,42 @@ function pca(input;
   # Force the symbols to load.
   ccall((:loadSymbols, pcaLibrary), Nothing, ());
 
-  IORestoreSettings("Principal Components Analysis")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("pca")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  IOSetParamMat("input", input, points_are_rows)
+  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
   if !ismissing(decomposition_method)
-    IOSetParam("decomposition_method", convert(String, decomposition_method))
+    SetParam(p, "decomposition_method", convert(String, decomposition_method))
   end
   if !ismissing(new_dimensionality)
-    IOSetParam("new_dimensionality", convert(Int, new_dimensionality))
+    SetParam(p, "new_dimensionality", convert(Int, new_dimensionality))
   end
   if !ismissing(scale)
-    IOSetParam("scale", convert(Bool, scale))
+    SetParam(p, "scale", convert(Bool, scale))
   end
   if !ismissing(var_to_retain)
-    IOSetParam("var_to_retain", convert(Float64, var_to_retain))
+    SetParam(p, "var_to_retain", convert(Float64, var_to_retain))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output")
+  SetPassed(p, "output")
   # Call the program.
-  pca_mlpackMain()
+  call_pca(p, t)
 
-  return IOGetParamMat("output", points_are_rows)
+  results = (GetParamMat(p, "output", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

@@ -2,14 +2,14 @@ export cf
 
 import ..CFModel
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const cfLibrary = mlpack_jll.libmlpack_julia_cf
 
 # Call the C binding of the mlpack cf binding.
-function cf_mlpackMain()
-  success = ccall((:cf, cfLibrary), Bool, ())
+function call_cf(p, t)
+  success = ccall((:mlpack_cf, cfLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module cf_internal
 import ...CFModel
 
 # Get the value of a model pointer parameter of type CFModel.
-function IOGetParamCFModel(paramName::String)::CFModel
-  CFModel(ccall((:IO_GetParamCFModelPtr, cfLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamCFModel(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::CFModel
+  ptr = ccall((:GetParamCFModelPtr, cfLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return CFModel(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type CFModel.
-function IOSetParamCFModel(paramName::String, model::CFModel)
-  ccall((:IO_SetParamCFModelPtr, cfLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamCFModel(params::Ptr{Nothing}, paramName::String, model::CFModel)
+  ccall((:SetParamCFModelPtr, cfLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteCFModel(ptr::Ptr{Nothing})
+  ccall((:DeleteCFModelPtr, cfLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeCFModel(stream::IO, model::CFModel)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeCFModelPtr, cfLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeCFModelPtr, cfLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeCFModel(stream::IO)::CFModel
-  buffer = read(stream)
-  CFModel(ccall((:DeserializeCFModelPtr, cfLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer CFModel(ccall((:DeserializeCFModelPtr, cfLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -201,68 +209,80 @@ function cf(;
   # Force the symbols to load.
   ccall((:loadSymbols, cfLibrary), Nothing, ());
 
-  IORestoreSettings("Collaborative Filtering")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("cf")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(algorithm)
-    IOSetParam("algorithm", convert(String, algorithm))
+    SetParam(p, "algorithm", convert(String, algorithm))
   end
   if !ismissing(all_user_recommendations)
-    IOSetParam("all_user_recommendations", convert(Bool, all_user_recommendations))
+    SetParam(p, "all_user_recommendations", convert(Bool, all_user_recommendations))
   end
   if !ismissing(input_model)
-    cf_internal.IOSetParamCFModel("input_model", convert(CFModel, input_model))
+    push!(modelPtrs, convert(CFModel, input_model).ptr)
+    cf_internal.SetParamCFModel(p, "input_model", convert(CFModel, input_model))
   end
   if !ismissing(interpolation)
-    IOSetParam("interpolation", convert(String, interpolation))
+    SetParam(p, "interpolation", convert(String, interpolation))
   end
   if !ismissing(iteration_only_termination)
-    IOSetParam("iteration_only_termination", convert(Bool, iteration_only_termination))
+    SetParam(p, "iteration_only_termination", convert(Bool, iteration_only_termination))
   end
   if !ismissing(max_iterations)
-    IOSetParam("max_iterations", convert(Int, max_iterations))
+    SetParam(p, "max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(min_residue)
-    IOSetParam("min_residue", convert(Float64, min_residue))
+    SetParam(p, "min_residue", convert(Float64, min_residue))
   end
   if !ismissing(neighbor_search)
-    IOSetParam("neighbor_search", convert(String, neighbor_search))
+    SetParam(p, "neighbor_search", convert(String, neighbor_search))
   end
   if !ismissing(neighborhood)
-    IOSetParam("neighborhood", convert(Int, neighborhood))
+    SetParam(p, "neighborhood", convert(Int, neighborhood))
   end
   if !ismissing(normalization)
-    IOSetParam("normalization", convert(String, normalization))
+    SetParam(p, "normalization", convert(String, normalization))
   end
   if !ismissing(query)
-    IOSetParamUMat("query", query, points_are_rows)
+    SetParamUMat(p, "query", query, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(rank)
-    IOSetParam("rank", convert(Int, rank))
+    SetParam(p, "rank", convert(Int, rank))
   end
   if !ismissing(recommendations)
-    IOSetParam("recommendations", convert(Int, recommendations))
+    SetParam(p, "recommendations", convert(Int, recommendations))
   end
   if !ismissing(seed)
-    IOSetParam("seed", convert(Int, seed))
+    SetParam(p, "seed", convert(Int, seed))
   end
   if !ismissing(test)
-    IOSetParamMat("test", test, points_are_rows)
+    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(training)
-    IOSetParamMat("training", training, points_are_rows)
+    SetParamMat(p, "training", training, points_are_rows, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output")
-  IOSetPassed("output_model")
+  SetPassed(p, "output")
+  SetPassed(p, "output_model")
   # Call the program.
-  cf_mlpackMain()
+  call_cf(p, t)
 
-  return IOGetParamUMat("output", points_are_rows),
-         cf_internal.IOGetParamCFModel("output_model")
+  results = (GetParamUMat(p, "output", points_are_rows, juliaOwnedMemory),
+             cf_internal.GetParamCFModel(p, "output_model", modelPtrs))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

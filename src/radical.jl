@@ -1,14 +1,14 @@
 export radical
 
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const radicalLibrary = mlpack_jll.libmlpack_julia_radical
 
 # Call the C binding of the mlpack radical binding.
-function radical_mlpackMain()
-  success = ccall((:radical, radicalLibrary), Bool, ())
+function call_radical(p, t)
+  success = ccall((:mlpack_radical, radicalLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -89,39 +89,50 @@ function radical(input;
   # Force the symbols to load.
   ccall((:loadSymbols, radicalLibrary), Nothing, ());
 
-  IORestoreSettings("RADICAL")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("radical")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  IOSetParamMat("input", input, points_are_rows)
+  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
   if !ismissing(angles)
-    IOSetParam("angles", convert(Int, angles))
+    SetParam(p, "angles", convert(Int, angles))
   end
   if !ismissing(noise_std_dev)
-    IOSetParam("noise_std_dev", convert(Float64, noise_std_dev))
+    SetParam(p, "noise_std_dev", convert(Float64, noise_std_dev))
   end
   if !ismissing(objective)
-    IOSetParam("objective", convert(Bool, objective))
+    SetParam(p, "objective", convert(Bool, objective))
   end
   if !ismissing(replicates)
-    IOSetParam("replicates", convert(Int, replicates))
+    SetParam(p, "replicates", convert(Int, replicates))
   end
   if !ismissing(seed)
-    IOSetParam("seed", convert(Int, seed))
+    SetParam(p, "seed", convert(Int, seed))
   end
   if !ismissing(sweeps)
-    IOSetParam("sweeps", convert(Int, sweeps))
+    SetParam(p, "sweeps", convert(Int, sweeps))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output_ic")
-  IOSetPassed("output_unmixing")
+  SetPassed(p, "output_ic")
+  SetPassed(p, "output_unmixing")
   # Call the program.
-  radical_mlpackMain()
+  call_radical(p, t)
 
-  return IOGetParamMat("output_ic", points_are_rows),
-         IOGetParamMat("output_unmixing", points_are_rows)
+  results = (GetParamMat(p, "output_ic", points_are_rows, juliaOwnedMemory),
+             GetParamMat(p, "output_unmixing", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

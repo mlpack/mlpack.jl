@@ -2,14 +2,14 @@ export gmm_train
 
 import ..GMM
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const gmm_trainLibrary = mlpack_jll.libmlpack_julia_gmm_train
 
 # Call the C binding of the mlpack gmm_train binding.
-function gmm_train_mlpackMain()
-  success = ccall((:gmm_train, gmm_trainLibrary), Bool, ())
+function call_gmm_train(p, t)
+  success = ccall((:mlpack_gmm_train, gmm_trainLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module gmm_train_internal
 import ...GMM
 
 # Get the value of a model pointer parameter of type GMM.
-function IOGetParamGMM(paramName::String)::GMM
-  GMM(ccall((:IO_GetParamGMMPtr, gmm_trainLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamGMM(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::GMM
+  ptr = ccall((:GetParamGMMPtr, gmm_trainLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return GMM(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type GMM.
-function IOSetParamGMM(paramName::String, model::GMM)
-  ccall((:IO_SetParamGMMPtr, gmm_trainLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamGMM(params::Ptr{Nothing}, paramName::String, model::GMM)
+  ccall((:SetParamGMMPtr, gmm_trainLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteGMM(ptr::Ptr{Nothing})
+  ccall((:DeleteGMMPtr, gmm_trainLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeGMM(stream::IO, model::GMM)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeGMMPtr, gmm_trainLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeGMMPtr, gmm_trainLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeGMM(stream::IO)::GMM
-  buffer = read(stream)
-  GMM(ccall((:DeserializeGMMPtr, gmm_trainLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer GMM(ccall((:DeserializeGMMPtr, gmm_trainLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -176,56 +184,68 @@ function gmm_train(gaussians::Int,
   # Force the symbols to load.
   ccall((:loadSymbols, gmm_trainLibrary), Nothing, ());
 
-  IORestoreSettings("Gaussian Mixture Model (GMM) Training")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("gmm_train")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  IOSetParam("gaussians", gaussians)
-  IOSetParamMat("input", input, points_are_rows)
+  SetParam(p, "gaussians", gaussians)
+  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
   if !ismissing(diagonal_covariance)
-    IOSetParam("diagonal_covariance", convert(Bool, diagonal_covariance))
+    SetParam(p, "diagonal_covariance", convert(Bool, diagonal_covariance))
   end
   if !ismissing(input_model)
-    gmm_train_internal.IOSetParamGMM("input_model", convert(GMM, input_model))
+    push!(modelPtrs, convert(GMM, input_model).ptr)
+    gmm_train_internal.SetParamGMM(p, "input_model", convert(GMM, input_model))
   end
   if !ismissing(kmeans_max_iterations)
-    IOSetParam("kmeans_max_iterations", convert(Int, kmeans_max_iterations))
+    SetParam(p, "kmeans_max_iterations", convert(Int, kmeans_max_iterations))
   end
   if !ismissing(max_iterations)
-    IOSetParam("max_iterations", convert(Int, max_iterations))
+    SetParam(p, "max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(no_force_positive)
-    IOSetParam("no_force_positive", convert(Bool, no_force_positive))
+    SetParam(p, "no_force_positive", convert(Bool, no_force_positive))
   end
   if !ismissing(noise)
-    IOSetParam("noise", convert(Float64, noise))
+    SetParam(p, "noise", convert(Float64, noise))
   end
   if !ismissing(percentage)
-    IOSetParam("percentage", convert(Float64, percentage))
+    SetParam(p, "percentage", convert(Float64, percentage))
   end
   if !ismissing(refined_start)
-    IOSetParam("refined_start", convert(Bool, refined_start))
+    SetParam(p, "refined_start", convert(Bool, refined_start))
   end
   if !ismissing(samplings)
-    IOSetParam("samplings", convert(Int, samplings))
+    SetParam(p, "samplings", convert(Int, samplings))
   end
   if !ismissing(seed)
-    IOSetParam("seed", convert(Int, seed))
+    SetParam(p, "seed", convert(Int, seed))
   end
   if !ismissing(tolerance)
-    IOSetParam("tolerance", convert(Float64, tolerance))
+    SetParam(p, "tolerance", convert(Float64, tolerance))
   end
   if !ismissing(trials)
-    IOSetParam("trials", convert(Int, trials))
+    SetParam(p, "trials", convert(Int, trials))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output_model")
+  SetPassed(p, "output_model")
   # Call the program.
-  gmm_train_mlpackMain()
+  call_gmm_train(p, t)
 
-  return gmm_train_internal.IOGetParamGMM("output_model")
+  results = (gmm_train_internal.GetParamGMM(p, "output_model", modelPtrs))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

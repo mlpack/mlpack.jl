@@ -1,14 +1,14 @@
 export preprocess_one_hot_encoding
 
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const preprocess_one_hot_encodingLibrary = mlpack_jll.libmlpack_julia_preprocess_one_hot_encoding
 
 # Call the C binding of the mlpack preprocess_one_hot_encoding binding.
-function preprocess_one_hot_encoding_mlpackMain()
-  success = ccall((:preprocess_one_hot_encoding, preprocess_one_hot_encodingLibrary), Bool, ())
+function call_preprocess_one_hot_encoding(p, t)
+  success = ccall((:mlpack_preprocess_one_hot_encoding, preprocess_one_hot_encodingLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -62,20 +62,31 @@ function preprocess_one_hot_encoding(dimensions::Vector{Int},
   # Force the symbols to load.
   ccall((:loadSymbols, preprocess_one_hot_encodingLibrary), Nothing, ());
 
-  IORestoreSettings("One Hot Encoding")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("preprocess_one_hot_encoding")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  IOSetParam("dimensions", dimensions)
-  IOSetParamMat("input", input, points_are_rows)
+  SetParam(p, "dimensions", dimensions)
+  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output")
+  SetPassed(p, "output")
   # Call the program.
-  preprocess_one_hot_encoding_mlpackMain()
+  call_preprocess_one_hot_encoding(p, t)
 
-  return IOGetParamMat("output", points_are_rows)
+  results = (GetParamMat(p, "output", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

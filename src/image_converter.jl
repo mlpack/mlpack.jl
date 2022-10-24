@@ -1,14 +1,14 @@
 export image_converter
 
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const image_converterLibrary = mlpack_jll.libmlpack_julia_image_converter
 
 # Call the C binding of the mlpack image_converter binding.
-function image_converter_mlpackMain()
-  success = ccall((:image_converter, image_converterLibrary), Bool, ())
+function call_image_converter(p, t)
+  success = ccall((:mlpack_image_converter, image_converterLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -86,37 +86,48 @@ function image_converter(input::Vector{String};
   # Force the symbols to load.
   ccall((:loadSymbols, image_converterLibrary), Nothing, ());
 
-  IORestoreSettings("Image Converter")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("image_converter")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  IOSetParam("input", input)
+  SetParam(p, "input", input)
   if !ismissing(channels)
-    IOSetParam("channels", convert(Int, channels))
+    SetParam(p, "channels", convert(Int, channels))
   end
   if !ismissing(dataset)
-    IOSetParamMat("dataset", dataset, points_are_rows)
+    SetParamMat(p, "dataset", dataset, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(height)
-    IOSetParam("height", convert(Int, height))
+    SetParam(p, "height", convert(Int, height))
   end
   if !ismissing(quality)
-    IOSetParam("quality", convert(Int, quality))
+    SetParam(p, "quality", convert(Int, quality))
   end
   if !ismissing(save)
-    IOSetParam("save", convert(Bool, save))
+    SetParam(p, "save", convert(Bool, save))
   end
   if !ismissing(width)
-    IOSetParam("width", convert(Int, width))
+    SetParam(p, "width", convert(Int, width))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output")
+  SetPassed(p, "output")
   # Call the program.
-  image_converter_mlpackMain()
+  call_image_converter(p, t)
 
-  return IOGetParamMat("output", points_are_rows)
+  results = (GetParamMat(p, "output", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

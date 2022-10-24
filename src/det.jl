@@ -2,14 +2,14 @@ export det
 
 import ..DTree
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const detLibrary = mlpack_jll.libmlpack_julia_det
 
 # Call the C binding of the mlpack det binding.
-function det_mlpackMain()
-  success = ccall((:det, detLibrary), Bool, ())
+function call_det(p, t)
+  success = ccall((:mlpack_det, detLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module det_internal
 import ...DTree
 
 # Get the value of a model pointer parameter of type DTree.
-function IOGetParamDTree(paramName::String)::DTree
-  DTree(ccall((:IO_GetParamDTreePtr, detLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamDTree(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::DTree
+  ptr = ccall((:GetParamDTreePtr, detLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return DTree(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type DTree.
-function IOSetParamDTree(paramName::String, model::DTree)
-  ccall((:IO_SetParamDTreePtr, detLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamDTree(params::Ptr{Nothing}, paramName::String, model::DTree)
+  ccall((:SetParamDTreePtr, detLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteDTree(ptr::Ptr{Nothing})
+  ccall((:DeleteDTreePtr, detLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeDTree(stream::IO, model::DTree)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeDTreePtr, detLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeDTreePtr, detLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeDTree(stream::IO)::DTree
-  buffer = read(stream)
-  DTree(ccall((:DeserializeDTreePtr, detLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer DTree(ccall((:DeserializeDTreePtr, detLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -132,52 +140,64 @@ function det(;
   # Force the symbols to load.
   ccall((:loadSymbols, detLibrary), Nothing, ());
 
-  IORestoreSettings("Density Estimation With Density Estimation Trees")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("det")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(folds)
-    IOSetParam("folds", convert(Int, folds))
+    SetParam(p, "folds", convert(Int, folds))
   end
   if !ismissing(input_model)
-    det_internal.IOSetParamDTree("input_model", convert(DTree, input_model))
+    push!(modelPtrs, convert(DTree, input_model).ptr)
+    det_internal.SetParamDTree(p, "input_model", convert(DTree, input_model))
   end
   if !ismissing(max_leaf_size)
-    IOSetParam("max_leaf_size", convert(Int, max_leaf_size))
+    SetParam(p, "max_leaf_size", convert(Int, max_leaf_size))
   end
   if !ismissing(min_leaf_size)
-    IOSetParam("min_leaf_size", convert(Int, min_leaf_size))
+    SetParam(p, "min_leaf_size", convert(Int, min_leaf_size))
   end
   if !ismissing(path_format)
-    IOSetParam("path_format", convert(String, path_format))
+    SetParam(p, "path_format", convert(String, path_format))
   end
   if !ismissing(skip_pruning)
-    IOSetParam("skip_pruning", convert(Bool, skip_pruning))
+    SetParam(p, "skip_pruning", convert(Bool, skip_pruning))
   end
   if !ismissing(test)
-    IOSetParamMat("test", test, points_are_rows)
+    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(training)
-    IOSetParamMat("training", training, points_are_rows)
+    SetParamMat(p, "training", training, points_are_rows, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output_model")
-  IOSetPassed("tag_counters_file")
-  IOSetPassed("tag_file")
-  IOSetPassed("test_set_estimates")
-  IOSetPassed("training_set_estimates")
-  IOSetPassed("vi")
+  SetPassed(p, "output_model")
+  SetPassed(p, "tag_counters_file")
+  SetPassed(p, "tag_file")
+  SetPassed(p, "test_set_estimates")
+  SetPassed(p, "training_set_estimates")
+  SetPassed(p, "vi")
   # Call the program.
-  det_mlpackMain()
+  call_det(p, t)
 
-  return det_internal.IOGetParamDTree("output_model"),
-         Base.unsafe_string(IOGetParamString("tag_counters_file")),
-         Base.unsafe_string(IOGetParamString("tag_file")),
-         IOGetParamMat("test_set_estimates", points_are_rows),
-         IOGetParamMat("training_set_estimates", points_are_rows),
-         IOGetParamMat("vi", points_are_rows)
+  results = (det_internal.GetParamDTree(p, "output_model", modelPtrs),
+             Base.unsafe_string(GetParamString(p, "tag_counters_file")),
+             Base.unsafe_string(GetParamString(p, "tag_file")),
+             GetParamMat(p, "test_set_estimates", points_are_rows, juliaOwnedMemory),
+             GetParamMat(p, "training_set_estimates", points_are_rows, juliaOwnedMemory),
+             GetParamMat(p, "vi", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

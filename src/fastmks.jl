@@ -2,14 +2,14 @@ export fastmks
 
 import ..FastMKSModel
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const fastmksLibrary = mlpack_jll.libmlpack_julia_fastmks
 
 # Call the C binding of the mlpack fastmks binding.
-function fastmks_mlpackMain()
-  success = ccall((:fastmks, fastmksLibrary), Bool, ())
+function call_fastmks(p, t)
+  success = ccall((:mlpack_fastmks, fastmksLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module fastmks_internal
 import ...FastMKSModel
 
 # Get the value of a model pointer parameter of type FastMKSModel.
-function IOGetParamFastMKSModel(paramName::String)::FastMKSModel
-  FastMKSModel(ccall((:IO_GetParamFastMKSModelPtr, fastmksLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamFastMKSModel(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::FastMKSModel
+  ptr = ccall((:GetParamFastMKSModelPtr, fastmksLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return FastMKSModel(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type FastMKSModel.
-function IOSetParamFastMKSModel(paramName::String, model::FastMKSModel)
-  ccall((:IO_SetParamFastMKSModelPtr, fastmksLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamFastMKSModel(params::Ptr{Nothing}, paramName::String, model::FastMKSModel)
+  ccall((:SetParamFastMKSModelPtr, fastmksLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteFastMKSModel(ptr::Ptr{Nothing})
+  ccall((:DeleteFastMKSModelPtr, fastmksLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeFastMKSModel(stream::IO, model::FastMKSModel)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeFastMKSModelPtr, fastmksLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeFastMKSModelPtr, fastmksLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeFastMKSModel(stream::IO)::FastMKSModel
-  buffer = read(stream)
-  FastMKSModel(ccall((:DeserializeFastMKSModelPtr, fastmksLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer FastMKSModel(ccall((:DeserializeFastMKSModelPtr, fastmksLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -138,58 +146,70 @@ function fastmks(;
   # Force the symbols to load.
   ccall((:loadSymbols, fastmksLibrary), Nothing, ());
 
-  IORestoreSettings("FastMKS (Fast Max-Kernel Search)")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("fastmks")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(bandwidth)
-    IOSetParam("bandwidth", convert(Float64, bandwidth))
+    SetParam(p, "bandwidth", convert(Float64, bandwidth))
   end
   if !ismissing(base)
-    IOSetParam("base", convert(Float64, base))
+    SetParam(p, "base", convert(Float64, base))
   end
   if !ismissing(degree)
-    IOSetParam("degree", convert(Float64, degree))
+    SetParam(p, "degree", convert(Float64, degree))
   end
   if !ismissing(input_model)
-    fastmks_internal.IOSetParamFastMKSModel("input_model", convert(FastMKSModel, input_model))
+    push!(modelPtrs, convert(FastMKSModel, input_model).ptr)
+    fastmks_internal.SetParamFastMKSModel(p, "input_model", convert(FastMKSModel, input_model))
   end
   if !ismissing(k)
-    IOSetParam("k", convert(Int, k))
+    SetParam(p, "k", convert(Int, k))
   end
   if !ismissing(kernel)
-    IOSetParam("kernel", convert(String, kernel))
+    SetParam(p, "kernel", convert(String, kernel))
   end
   if !ismissing(naive)
-    IOSetParam("naive", convert(Bool, naive))
+    SetParam(p, "naive", convert(Bool, naive))
   end
   if !ismissing(offset)
-    IOSetParam("offset", convert(Float64, offset))
+    SetParam(p, "offset", convert(Float64, offset))
   end
   if !ismissing(query)
-    IOSetParamMat("query", query, points_are_rows)
+    SetParamMat(p, "query", query, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(reference)
-    IOSetParamMat("reference", reference, points_are_rows)
+    SetParamMat(p, "reference", reference, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(scale)
-    IOSetParam("scale", convert(Float64, scale))
+    SetParam(p, "scale", convert(Float64, scale))
   end
   if !ismissing(single)
-    IOSetParam("single", convert(Bool, single))
+    SetParam(p, "single", convert(Bool, single))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("indices")
-  IOSetPassed("kernels")
-  IOSetPassed("output_model")
+  SetPassed(p, "indices")
+  SetPassed(p, "kernels")
+  SetPassed(p, "output_model")
   # Call the program.
-  fastmks_mlpackMain()
+  call_fastmks(p, t)
 
-  return IOGetParamUMat("indices", points_are_rows),
-         IOGetParamMat("kernels", points_are_rows),
-         fastmks_internal.IOGetParamFastMKSModel("output_model")
+  results = (GetParamUMat(p, "indices", points_are_rows, juliaOwnedMemory),
+             GetParamMat(p, "kernels", points_are_rows, juliaOwnedMemory),
+             fastmks_internal.GetParamFastMKSModel(p, "output_model", modelPtrs))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

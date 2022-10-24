@@ -2,14 +2,14 @@ export kde
 
 import ..KDEModel
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const kdeLibrary = mlpack_jll.libmlpack_julia_kde
 
 # Call the C binding of the mlpack kde binding.
-function kde_mlpackMain()
-  success = ccall((:kde, kdeLibrary), Bool, ())
+function call_kde(p, t)
+  success = ccall((:mlpack_kde, kdeLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module kde_internal
 import ...KDEModel
 
 # Get the value of a model pointer parameter of type KDEModel.
-function IOGetParamKDEModel(paramName::String)::KDEModel
-  KDEModel(ccall((:IO_GetParamKDEModelPtr, kdeLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamKDEModel(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::KDEModel
+  ptr = ccall((:GetParamKDEModelPtr, kdeLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return KDEModel(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type KDEModel.
-function IOSetParamKDEModel(paramName::String, model::KDEModel)
-  ccall((:IO_SetParamKDEModelPtr, kdeLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamKDEModel(params::Ptr{Nothing}, paramName::String, model::KDEModel)
+  ccall((:SetParamKDEModelPtr, kdeLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteKDEModel(ptr::Ptr{Nothing})
+  ccall((:DeleteKDEModelPtr, kdeLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeKDEModel(stream::IO, model::KDEModel)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeKDEModelPtr, kdeLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeKDEModelPtr, kdeLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeKDEModel(stream::IO)::KDEModel
-  buffer = read(stream)
-  KDEModel(ccall((:DeserializeKDEModelPtr, kdeLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer KDEModel(ccall((:DeserializeKDEModelPtr, kdeLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -194,62 +202,74 @@ function kde(;
   # Force the symbols to load.
   ccall((:loadSymbols, kdeLibrary), Nothing, ());
 
-  IORestoreSettings("Kernel Density Estimation")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("kde")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(abs_error)
-    IOSetParam("abs_error", convert(Float64, abs_error))
+    SetParam(p, "abs_error", convert(Float64, abs_error))
   end
   if !ismissing(algorithm)
-    IOSetParam("algorithm", convert(String, algorithm))
+    SetParam(p, "algorithm", convert(String, algorithm))
   end
   if !ismissing(bandwidth)
-    IOSetParam("bandwidth", convert(Float64, bandwidth))
+    SetParam(p, "bandwidth", convert(Float64, bandwidth))
   end
   if !ismissing(initial_sample_size)
-    IOSetParam("initial_sample_size", convert(Int, initial_sample_size))
+    SetParam(p, "initial_sample_size", convert(Int, initial_sample_size))
   end
   if !ismissing(input_model)
-    kde_internal.IOSetParamKDEModel("input_model", convert(KDEModel, input_model))
+    push!(modelPtrs, convert(KDEModel, input_model).ptr)
+    kde_internal.SetParamKDEModel(p, "input_model", convert(KDEModel, input_model))
   end
   if !ismissing(kernel)
-    IOSetParam("kernel", convert(String, kernel))
+    SetParam(p, "kernel", convert(String, kernel))
   end
   if !ismissing(mc_break_coef)
-    IOSetParam("mc_break_coef", convert(Float64, mc_break_coef))
+    SetParam(p, "mc_break_coef", convert(Float64, mc_break_coef))
   end
   if !ismissing(mc_entry_coef)
-    IOSetParam("mc_entry_coef", convert(Float64, mc_entry_coef))
+    SetParam(p, "mc_entry_coef", convert(Float64, mc_entry_coef))
   end
   if !ismissing(mc_probability)
-    IOSetParam("mc_probability", convert(Float64, mc_probability))
+    SetParam(p, "mc_probability", convert(Float64, mc_probability))
   end
   if !ismissing(monte_carlo)
-    IOSetParam("monte_carlo", convert(Bool, monte_carlo))
+    SetParam(p, "monte_carlo", convert(Bool, monte_carlo))
   end
   if !ismissing(query)
-    IOSetParamMat("query", query, points_are_rows)
+    SetParamMat(p, "query", query, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(reference)
-    IOSetParamMat("reference", reference, points_are_rows)
+    SetParamMat(p, "reference", reference, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(rel_error)
-    IOSetParam("rel_error", convert(Float64, rel_error))
+    SetParam(p, "rel_error", convert(Float64, rel_error))
   end
   if !ismissing(tree)
-    IOSetParam("tree", convert(String, tree))
+    SetParam(p, "tree", convert(String, tree))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output_model")
-  IOSetPassed("predictions")
+  SetPassed(p, "output_model")
+  SetPassed(p, "predictions")
   # Call the program.
-  kde_mlpackMain()
+  call_kde(p, t)
 
-  return kde_internal.IOGetParamKDEModel("output_model"),
-         IOGetParamCol("predictions")
+  results = (kde_internal.GetParamKDEModel(p, "output_model", modelPtrs),
+             GetParamCol(p, "predictions", juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

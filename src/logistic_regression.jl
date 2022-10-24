@@ -2,14 +2,14 @@ export logistic_regression
 
 import ..LogisticRegression
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const logistic_regressionLibrary = mlpack_jll.libmlpack_julia_logistic_regression
 
 # Call the C binding of the mlpack logistic_regression binding.
-function logistic_regression_mlpackMain()
-  success = ccall((:logistic_regression, logistic_regressionLibrary), Bool, ())
+function call_logistic_regression(p, t)
+  success = ccall((:mlpack_logistic_regression, logistic_regressionLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module logistic_regression_internal
 import ...LogisticRegression
 
 # Get the value of a model pointer parameter of type LogisticRegression.
-function IOGetParamLogisticRegression(paramName::String)::LogisticRegression
-  LogisticRegression(ccall((:IO_GetParamLogisticRegressionPtr, logistic_regressionLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamLogisticRegression(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::LogisticRegression
+  ptr = ccall((:GetParamLogisticRegressionPtr, logistic_regressionLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return LogisticRegression(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type LogisticRegression.
-function IOSetParamLogisticRegression(paramName::String, model::LogisticRegression)
-  ccall((:IO_SetParamLogisticRegressionPtr, logistic_regressionLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamLogisticRegression(params::Ptr{Nothing}, paramName::String, model::LogisticRegression)
+  ccall((:SetParamLogisticRegressionPtr, logistic_regressionLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteLogisticRegression(ptr::Ptr{Nothing})
+  ccall((:DeleteLogisticRegressionPtr, logistic_regressionLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeLogisticRegression(stream::IO, model::LogisticRegression)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeLogisticRegressionPtr, logistic_regressionLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeLogisticRegressionPtr, logistic_regressionLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeLogisticRegression(stream::IO)::LogisticRegression
-  buffer = read(stream)
-  LogisticRegression(ccall((:DeserializeLogisticRegressionPtr, logistic_regressionLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer LogisticRegression(ccall((:DeserializeLogisticRegressionPtr, logistic_regressionLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -53,9 +61,9 @@ An implementation of L2-regularized logistic regression using either the L-BFGS
 optimizer or SGD (stochastic gradient descent).  This solves the regression
 problem
 
-  y = (1 / 1 + e^-(X * b))
+  y = (1 / 1 + e^-(X * b)).
 
-where y takes values 0 or 1.
+In this setting, y corresponds to class labels and X corresponds to data.
 
 This program allows loading a logistic regression model (via the `input_model`
 parameter) or training a logistic regression model given training data
@@ -93,14 +101,9 @@ without the `training` parameter, so long as an existing logistic regression
 model is given with the `input_model` parameter.  The output predictions from
 the logistic regression model may be saved with the `predictions` parameter.
 
-Note : The following parameters are deprecated and will be removed in mlpack 4:
-`output`, `output_probabilities`
-Use `predictions` instead of `output`
-Use `probabilities` instead of `output_probabilities`
-
 This implementation of logistic regression does not support the general
 multi-class case but instead only the two-class case.  Any labels must be either
-0 or 1.  For more classes, see the softmax_regression program.
+1 or 2.  For more classes, see the softmax regression implementation.
 
 As an example, to train a logistic regression model on the data '`data`' with
 labels '`labels`' with L2 regularization of 0.1, saving the model to
@@ -110,7 +113,7 @@ labels '`labels`' with L2 regularization of 0.1, saving the model to
 julia> using CSV
 julia> data = CSV.read("data.csv")
 julia> labels = CSV.read("labels.csv"; type=Int)
-julia> _, lr_model, _, _, _ = logistic_regression(labels=labels,
+julia> lr_model, _, _ = logistic_regression(labels=labels,
             lambda=0.1, training=data)
 ```
 
@@ -120,8 +123,8 @@ output predictions in '`predictions`', the following command may be used:
 ```julia
 julia> using CSV
 julia> test = CSV.read("test.csv")
-julia> predictions, _, _, _, _ =
-            logistic_regression(input_model=lr_model, test=test)
+julia> _, predictions, _ = logistic_regression(input_model=lr_model,
+            test=test)
 ```
 
 # Arguments
@@ -159,13 +162,8 @@ julia> predictions, _, _, _, _ =
 
 # Return values
 
- - `output::Array{Int, 1}`: If test data is specified, this matrix is
-      where the predictions for the test set will be saved.
  - `output_model::LogisticRegression`: Output for trained logistic
       regression model.
- - `output_probabilities::Array{Float64, 2}`: If test data is specified,
-      this matrix is where the class probabilities for the test set will be
-      saved.
  - `predictions::Array{Int, 1}`: If test data is specified, this matrix is
       where the predictions for the test set will be saved.
  - `probabilities::Array{Float64, 2}`: If test data is specified, this
@@ -189,59 +187,67 @@ function logistic_regression(;
   # Force the symbols to load.
   ccall((:loadSymbols, logistic_regressionLibrary), Nothing, ());
 
-  IORestoreSettings("L2-regularized Logistic Regression and Prediction")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("logistic_regression")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(batch_size)
-    IOSetParam("batch_size", convert(Int, batch_size))
+    SetParam(p, "batch_size", convert(Int, batch_size))
   end
   if !ismissing(decision_boundary)
-    IOSetParam("decision_boundary", convert(Float64, decision_boundary))
+    SetParam(p, "decision_boundary", convert(Float64, decision_boundary))
   end
   if !ismissing(input_model)
-    logistic_regression_internal.IOSetParamLogisticRegression("input_model", convert(LogisticRegression, input_model))
+    push!(modelPtrs, convert(LogisticRegression, input_model).ptr)
+    logistic_regression_internal.SetParamLogisticRegression(p, "input_model", convert(LogisticRegression, input_model))
   end
   if !ismissing(labels)
-    IOSetParamURow("labels", labels)
+    SetParamURow(p, "labels", labels, juliaOwnedMemory)
   end
   if !ismissing(lambda)
-    IOSetParam("lambda", convert(Float64, lambda))
+    SetParam(p, "lambda", convert(Float64, lambda))
   end
   if !ismissing(max_iterations)
-    IOSetParam("max_iterations", convert(Int, max_iterations))
+    SetParam(p, "max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(optimizer)
-    IOSetParam("optimizer", convert(String, optimizer))
+    SetParam(p, "optimizer", convert(String, optimizer))
   end
   if !ismissing(step_size)
-    IOSetParam("step_size", convert(Float64, step_size))
+    SetParam(p, "step_size", convert(Float64, step_size))
   end
   if !ismissing(test)
-    IOSetParamMat("test", test, points_are_rows)
+    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(tolerance)
-    IOSetParam("tolerance", convert(Float64, tolerance))
+    SetParam(p, "tolerance", convert(Float64, tolerance))
   end
   if !ismissing(training)
-    IOSetParamMat("training", training, points_are_rows)
+    SetParamMat(p, "training", training, points_are_rows, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output")
-  IOSetPassed("output_model")
-  IOSetPassed("output_probabilities")
-  IOSetPassed("predictions")
-  IOSetPassed("probabilities")
+  SetPassed(p, "output_model")
+  SetPassed(p, "predictions")
+  SetPassed(p, "probabilities")
   # Call the program.
-  logistic_regression_mlpackMain()
+  call_logistic_regression(p, t)
 
-  return IOGetParamURow("output"),
-         logistic_regression_internal.IOGetParamLogisticRegression("output_model"),
-         IOGetParamMat("output_probabilities", points_are_rows),
-         IOGetParamURow("predictions"),
-         IOGetParamMat("probabilities", points_are_rows)
+  results = (logistic_regression_internal.GetParamLogisticRegression(p, "output_model", modelPtrs),
+             GetParamURow(p, "predictions", juliaOwnedMemory),
+             GetParamMat(p, "probabilities", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

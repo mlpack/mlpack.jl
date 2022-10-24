@@ -1,14 +1,14 @@
 export lmnn
 
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const lmnnLibrary = mlpack_jll.libmlpack_julia_lmnn
 
 # Call the C binding of the mlpack lmnn binding.
-function lmnn_mlpackMain()
-  success = ccall((:lmnn, lmnnLibrary), Bool, ())
+function call_lmnn(p, t)
+  success = ccall((:mlpack_lmnn, lmnnLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -95,7 +95,7 @@ like:
 julia> using CSV
 julia> iris = CSV.read("iris.csv")
 julia> iris_labels = CSV.read("iris_labels.csv"; type=Int)
-julia> _, output, _ = mlpack_lmnn(iris; k=3, labels=iris_labels,
+julia> _, output, _ = lmnn(iris; k=3, labels=iris_labels,
             optimizer="bbsgd")
 ```
 
@@ -105,7 +105,7 @@ dataset having labels as last column can be made as:
 ```julia
 julia> using CSV
 julia> letter_recognition = CSV.read("letter_recognition.csv")
-julia> _, output, _ = mlpack_lmnn(letter_recognition; k=5, range=10,
+julia> _, output, _ = lmnn(letter_recognition; k=5, range=10,
             regularization=0.4)
 ```
 
@@ -198,74 +198,85 @@ function lmnn(input;
   # Force the symbols to load.
   ccall((:loadSymbols, lmnnLibrary), Nothing, ());
 
-  IORestoreSettings("Large Margin Nearest Neighbors (LMNN)")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("lmnn")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  IOSetParamMat("input", input, points_are_rows)
+  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
   if !ismissing(batch_size)
-    IOSetParam("batch_size", convert(Int, batch_size))
+    SetParam(p, "batch_size", convert(Int, batch_size))
   end
   if !ismissing(center)
-    IOSetParam("center", convert(Bool, center))
+    SetParam(p, "center", convert(Bool, center))
   end
   if !ismissing(distance)
-    IOSetParamMat("distance", distance, points_are_rows)
+    SetParamMat(p, "distance", distance, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(k)
-    IOSetParam("k", convert(Int, k))
+    SetParam(p, "k", convert(Int, k))
   end
   if !ismissing(labels)
-    IOSetParamURow("labels", labels)
+    SetParamURow(p, "labels", labels, juliaOwnedMemory)
   end
   if !ismissing(linear_scan)
-    IOSetParam("linear_scan", convert(Bool, linear_scan))
+    SetParam(p, "linear_scan", convert(Bool, linear_scan))
   end
   if !ismissing(max_iterations)
-    IOSetParam("max_iterations", convert(Int, max_iterations))
+    SetParam(p, "max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(normalize)
-    IOSetParam("normalize", convert(Bool, normalize))
+    SetParam(p, "normalize", convert(Bool, normalize))
   end
   if !ismissing(optimizer)
-    IOSetParam("optimizer", convert(String, optimizer))
+    SetParam(p, "optimizer", convert(String, optimizer))
   end
   if !ismissing(passes)
-    IOSetParam("passes", convert(Int, passes))
+    SetParam(p, "passes", convert(Int, passes))
   end
   if !ismissing(print_accuracy)
-    IOSetParam("print_accuracy", convert(Bool, print_accuracy))
+    SetParam(p, "print_accuracy", convert(Bool, print_accuracy))
   end
   if !ismissing(range)
-    IOSetParam("range", convert(Int, range))
+    SetParam(p, "range", convert(Int, range))
   end
   if !ismissing(rank)
-    IOSetParam("rank", convert(Int, rank))
+    SetParam(p, "rank", convert(Int, rank))
   end
   if !ismissing(regularization)
-    IOSetParam("regularization", convert(Float64, regularization))
+    SetParam(p, "regularization", convert(Float64, regularization))
   end
   if !ismissing(seed)
-    IOSetParam("seed", convert(Int, seed))
+    SetParam(p, "seed", convert(Int, seed))
   end
   if !ismissing(step_size)
-    IOSetParam("step_size", convert(Float64, step_size))
+    SetParam(p, "step_size", convert(Float64, step_size))
   end
   if !ismissing(tolerance)
-    IOSetParam("tolerance", convert(Float64, tolerance))
+    SetParam(p, "tolerance", convert(Float64, tolerance))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("centered_data")
-  IOSetPassed("output")
-  IOSetPassed("transformed_data")
+  SetPassed(p, "centered_data")
+  SetPassed(p, "output")
+  SetPassed(p, "transformed_data")
   # Call the program.
-  lmnn_mlpackMain()
+  call_lmnn(p, t)
 
-  return IOGetParamMat("centered_data", points_are_rows),
-         IOGetParamMat("output", points_are_rows),
-         IOGetParamMat("transformed_data", points_are_rows)
+  results = (GetParamMat(p, "centered_data", points_are_rows, juliaOwnedMemory),
+             GetParamMat(p, "output", points_are_rows, juliaOwnedMemory),
+             GetParamMat(p, "transformed_data", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

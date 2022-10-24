@@ -1,14 +1,14 @@
 export preprocess_describe
 
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const preprocess_describeLibrary = mlpack_jll.libmlpack_julia_preprocess_describe
 
 # Call the C binding of the mlpack preprocess_describe binding.
-function preprocess_describe_mlpackMain()
-  success = ccall((:preprocess_describe, preprocess_describeLibrary), Bool, ())
+function call_preprocess_describe(p, t)
+  success = ccall((:mlpack_preprocess_describe, preprocess_describeLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -93,33 +93,44 @@ function preprocess_describe(input;
   # Force the symbols to load.
   ccall((:loadSymbols, preprocess_describeLibrary), Nothing, ());
 
-  IORestoreSettings("Descriptive Statistics")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("preprocess_describe")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  IOSetParamMat("input", input, points_are_rows)
+  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
   if !ismissing(dimension)
-    IOSetParam("dimension", convert(Int, dimension))
+    SetParam(p, "dimension", convert(Int, dimension))
   end
   if !ismissing(population)
-    IOSetParam("population", convert(Bool, population))
+    SetParam(p, "population", convert(Bool, population))
   end
   if !ismissing(precision)
-    IOSetParam("precision", convert(Int, precision))
+    SetParam(p, "precision", convert(Int, precision))
   end
   if !ismissing(row_major)
-    IOSetParam("row_major", convert(Bool, row_major))
+    SetParam(p, "row_major", convert(Bool, row_major))
   end
   if !ismissing(width)
-    IOSetParam("width", convert(Int, width))
+    SetParam(p, "width", convert(Int, width))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
   # Call the program.
-  preprocess_describe_mlpackMain()
+  call_preprocess_describe(p, t)
 
-  return 
+  results = ()
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

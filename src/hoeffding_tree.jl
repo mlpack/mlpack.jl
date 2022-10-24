@@ -2,14 +2,14 @@ export hoeffding_tree
 
 import ..HoeffdingTreeModel
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const hoeffding_treeLibrary = mlpack_jll.libmlpack_julia_hoeffding_tree
 
 # Call the C binding of the mlpack hoeffding_tree binding.
-function hoeffding_tree_mlpackMain()
-  success = ccall((:hoeffding_tree, hoeffding_treeLibrary), Bool, ())
+function call_hoeffding_tree(p, t)
+  success = ccall((:mlpack_hoeffding_tree, hoeffding_treeLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module hoeffding_tree_internal
 import ...HoeffdingTreeModel
 
 # Get the value of a model pointer parameter of type HoeffdingTreeModel.
-function IOGetParamHoeffdingTreeModel(paramName::String)::HoeffdingTreeModel
-  HoeffdingTreeModel(ccall((:IO_GetParamHoeffdingTreeModelPtr, hoeffding_treeLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamHoeffdingTreeModel(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::HoeffdingTreeModel
+  ptr = ccall((:GetParamHoeffdingTreeModelPtr, hoeffding_treeLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return HoeffdingTreeModel(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type HoeffdingTreeModel.
-function IOSetParamHoeffdingTreeModel(paramName::String, model::HoeffdingTreeModel)
-  ccall((:IO_SetParamHoeffdingTreeModelPtr, hoeffding_treeLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamHoeffdingTreeModel(params::Ptr{Nothing}, paramName::String, model::HoeffdingTreeModel)
+  ccall((:SetParamHoeffdingTreeModelPtr, hoeffding_treeLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteHoeffdingTreeModel(ptr::Ptr{Nothing})
+  ccall((:DeleteHoeffdingTreeModelPtr, hoeffding_treeLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeHoeffdingTreeModel(stream::IO, model::HoeffdingTreeModel)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeHoeffdingTreeModelPtr, hoeffding_treeLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeHoeffdingTreeModelPtr, hoeffding_treeLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeHoeffdingTreeModel(stream::IO)::HoeffdingTreeModel
-  buffer = read(stream)
-  HoeffdingTreeModel(ccall((:DeserializeHoeffdingTreeModelPtr, hoeffding_treeLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer HoeffdingTreeModel(ccall((:DeserializeHoeffdingTreeModelPtr, hoeffding_treeLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -78,6 +86,8 @@ For example, to train a Hoeffding tree with confidence 0.99 with data `dataset`,
 saving the trained tree to `tree`, the following command may be used:
 
 ```julia
+julia> using CSV
+julia> dataset = CSV.read("dataset.csv")
 julia> tree, _, _ = hoeffding_tree(confidence=0.99,
             training=dataset)
 ```
@@ -87,6 +97,8 @@ saving the predictions into `predictions` and the class probabilities into
 `class_probs` with the following command: 
 
 ```julia
+julia> using CSV
+julia> test_set = CSV.read("test_set.csv")
 julia> _, predictions, class_probs =
             hoeffding_tree(input_model=tree, test=test_set)
 ```
@@ -163,64 +175,76 @@ function hoeffding_tree(;
   # Force the symbols to load.
   ccall((:loadSymbols, hoeffding_treeLibrary), Nothing, ());
 
-  IORestoreSettings("Hoeffding trees")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("hoeffding_tree")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(batch_mode)
-    IOSetParam("batch_mode", convert(Bool, batch_mode))
+    SetParam(p, "batch_mode", convert(Bool, batch_mode))
   end
   if !ismissing(bins)
-    IOSetParam("bins", convert(Int, bins))
+    SetParam(p, "bins", convert(Int, bins))
   end
   if !ismissing(confidence)
-    IOSetParam("confidence", convert(Float64, confidence))
+    SetParam(p, "confidence", convert(Float64, confidence))
   end
   if !ismissing(info_gain)
-    IOSetParam("info_gain", convert(Bool, info_gain))
+    SetParam(p, "info_gain", convert(Bool, info_gain))
   end
   if !ismissing(input_model)
-    hoeffding_tree_internal.IOSetParamHoeffdingTreeModel("input_model", convert(HoeffdingTreeModel, input_model))
+    push!(modelPtrs, convert(HoeffdingTreeModel, input_model).ptr)
+    hoeffding_tree_internal.SetParamHoeffdingTreeModel(p, "input_model", convert(HoeffdingTreeModel, input_model))
   end
   if !ismissing(labels)
-    IOSetParamURow("labels", labels)
+    SetParamURow(p, "labels", labels, juliaOwnedMemory)
   end
   if !ismissing(max_samples)
-    IOSetParam("max_samples", convert(Int, max_samples))
+    SetParam(p, "max_samples", convert(Int, max_samples))
   end
   if !ismissing(min_samples)
-    IOSetParam("min_samples", convert(Int, min_samples))
+    SetParam(p, "min_samples", convert(Int, min_samples))
   end
   if !ismissing(numeric_split_strategy)
-    IOSetParam("numeric_split_strategy", convert(String, numeric_split_strategy))
+    SetParam(p, "numeric_split_strategy", convert(String, numeric_split_strategy))
   end
   if !ismissing(observations_before_binning)
-    IOSetParam("observations_before_binning", convert(Int, observations_before_binning))
+    SetParam(p, "observations_before_binning", convert(Int, observations_before_binning))
   end
   if !ismissing(passes)
-    IOSetParam("passes", convert(Int, passes))
+    SetParam(p, "passes", convert(Int, passes))
   end
   if !ismissing(test)
-    IOSetParam("test", convert(Tuple{Array{Bool, 1}, Array{Float64, 2}}, test), points_are_rows)
+    SetParam(p, "test", convert(Tuple{Array{Bool, 1}, Array{Float64, 2}}, test), points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(test_labels)
-    IOSetParamURow("test_labels", test_labels)
+    SetParamURow(p, "test_labels", test_labels, juliaOwnedMemory)
   end
   if !ismissing(training)
-    IOSetParam("training", convert(Tuple{Array{Bool, 1}, Array{Float64, 2}}, training), points_are_rows)
+    SetParam(p, "training", convert(Tuple{Array{Bool, 1}, Array{Float64, 2}}, training), points_are_rows, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output_model")
-  IOSetPassed("predictions")
-  IOSetPassed("probabilities")
+  SetPassed(p, "output_model")
+  SetPassed(p, "predictions")
+  SetPassed(p, "probabilities")
   # Call the program.
-  hoeffding_tree_mlpackMain()
+  call_hoeffding_tree(p, t)
 
-  return hoeffding_tree_internal.IOGetParamHoeffdingTreeModel("output_model"),
-         IOGetParamURow("predictions"),
-         IOGetParamMat("probabilities", points_are_rows)
+  results = (hoeffding_tree_internal.GetParamHoeffdingTreeModel(p, "output_model", modelPtrs),
+             GetParamURow(p, "predictions", juliaOwnedMemory),
+             GetParamMat(p, "probabilities", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

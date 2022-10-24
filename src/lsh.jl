@@ -2,14 +2,14 @@ export lsh
 
 import ..LSHSearch
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const lshLibrary = mlpack_jll.libmlpack_julia_lsh
 
 # Call the C binding of the mlpack lsh binding.
-function lsh_mlpackMain()
-  success = ccall((:lsh, lshLibrary), Bool, ())
+function call_lsh(p, t)
+  success = ccall((:mlpack_lsh, lshLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module lsh_internal
 import ...LSHSearch
 
 # Get the value of a model pointer parameter of type LSHSearch.
-function IOGetParamLSHSearch(paramName::String)::LSHSearch
-  LSHSearch(ccall((:IO_GetParamLSHSearchPtr, lshLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamLSHSearch(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::LSHSearch
+  ptr = ccall((:GetParamLSHSearchPtr, lshLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return LSHSearch(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type LSHSearch.
-function IOSetParamLSHSearch(paramName::String, model::LSHSearch)
-  ccall((:IO_SetParamLSHSearchPtr, lshLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamLSHSearch(params::Ptr{Nothing}, paramName::String, model::LSHSearch)
+  ccall((:SetParamLSHSearchPtr, lshLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteLSHSearch(ptr::Ptr{Nothing})
+  ccall((:DeleteLSHSearchPtr, lshLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeLSHSearch(stream::IO, model::LSHSearch)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeLSHSearchPtr, lshLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeLSHSearchPtr, lshLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeLSHSearch(stream::IO)::LSHSearch
-  buffer = read(stream)
-  LSHSearch(ccall((:DeserializeLSHSearchPtr, lshLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer LSHSearch(ccall((:DeserializeLSHSearchPtr, lshLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -138,58 +146,70 @@ function lsh(;
   # Force the symbols to load.
   ccall((:loadSymbols, lshLibrary), Nothing, ());
 
-  IORestoreSettings("K-Approximate-Nearest-Neighbor Search with LSH")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("lsh")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(bucket_size)
-    IOSetParam("bucket_size", convert(Int, bucket_size))
+    SetParam(p, "bucket_size", convert(Int, bucket_size))
   end
   if !ismissing(hash_width)
-    IOSetParam("hash_width", convert(Float64, hash_width))
+    SetParam(p, "hash_width", convert(Float64, hash_width))
   end
   if !ismissing(input_model)
-    lsh_internal.IOSetParamLSHSearch("input_model", convert(LSHSearch, input_model))
+    push!(modelPtrs, convert(LSHSearch, input_model).ptr)
+    lsh_internal.SetParamLSHSearch(p, "input_model", convert(LSHSearch, input_model))
   end
   if !ismissing(k)
-    IOSetParam("k", convert(Int, k))
+    SetParam(p, "k", convert(Int, k))
   end
   if !ismissing(num_probes)
-    IOSetParam("num_probes", convert(Int, num_probes))
+    SetParam(p, "num_probes", convert(Int, num_probes))
   end
   if !ismissing(projections)
-    IOSetParam("projections", convert(Int, projections))
+    SetParam(p, "projections", convert(Int, projections))
   end
   if !ismissing(query)
-    IOSetParamMat("query", query, points_are_rows)
+    SetParamMat(p, "query", query, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(reference)
-    IOSetParamMat("reference", reference, points_are_rows)
+    SetParamMat(p, "reference", reference, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(second_hash_size)
-    IOSetParam("second_hash_size", convert(Int, second_hash_size))
+    SetParam(p, "second_hash_size", convert(Int, second_hash_size))
   end
   if !ismissing(seed)
-    IOSetParam("seed", convert(Int, seed))
+    SetParam(p, "seed", convert(Int, seed))
   end
   if !ismissing(tables)
-    IOSetParam("tables", convert(Int, tables))
+    SetParam(p, "tables", convert(Int, tables))
   end
   if !ismissing(true_neighbors)
-    IOSetParamUMat("true_neighbors", true_neighbors, points_are_rows)
+    SetParamUMat(p, "true_neighbors", true_neighbors, points_are_rows, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("distances")
-  IOSetPassed("neighbors")
-  IOSetPassed("output_model")
+  SetPassed(p, "distances")
+  SetPassed(p, "neighbors")
+  SetPassed(p, "output_model")
   # Call the program.
-  lsh_mlpackMain()
+  call_lsh(p, t)
 
-  return IOGetParamMat("distances", points_are_rows),
-         IOGetParamUMat("neighbors", points_are_rows),
-         lsh_internal.IOGetParamLSHSearch("output_model")
+  results = (GetParamMat(p, "distances", points_are_rows, juliaOwnedMemory),
+             GetParamUMat(p, "neighbors", points_are_rows, juliaOwnedMemory),
+             lsh_internal.GetParamLSHSearch(p, "output_model", modelPtrs))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

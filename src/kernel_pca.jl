@@ -1,14 +1,14 @@
 export kernel_pca
 
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const kernel_pcaLibrary = mlpack_jll.libmlpack_julia_kernel_pca
 
 # Call the C binding of the mlpack kernel_pca binding.
-function kernel_pca_mlpackMain()
-  success = ccall((:kernel_pca, kernel_pcaLibrary), Bool, ())
+function call_kernel_pca(p, t)
+  success = ccall((:mlpack_kernel_pca, kernel_pcaLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -128,44 +128,55 @@ function kernel_pca(input,
   # Force the symbols to load.
   ccall((:loadSymbols, kernel_pcaLibrary), Nothing, ());
 
-  IORestoreSettings("Kernel Principal Components Analysis")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("kernel_pca")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  IOSetParamMat("input", input, points_are_rows)
-  IOSetParam("kernel", kernel)
+  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
+  SetParam(p, "kernel", kernel)
   if !ismissing(bandwidth)
-    IOSetParam("bandwidth", convert(Float64, bandwidth))
+    SetParam(p, "bandwidth", convert(Float64, bandwidth))
   end
   if !ismissing(center)
-    IOSetParam("center", convert(Bool, center))
+    SetParam(p, "center", convert(Bool, center))
   end
   if !ismissing(degree)
-    IOSetParam("degree", convert(Float64, degree))
+    SetParam(p, "degree", convert(Float64, degree))
   end
   if !ismissing(kernel_scale)
-    IOSetParam("kernel_scale", convert(Float64, kernel_scale))
+    SetParam(p, "kernel_scale", convert(Float64, kernel_scale))
   end
   if !ismissing(new_dimensionality)
-    IOSetParam("new_dimensionality", convert(Int, new_dimensionality))
+    SetParam(p, "new_dimensionality", convert(Int, new_dimensionality))
   end
   if !ismissing(nystroem_method)
-    IOSetParam("nystroem_method", convert(Bool, nystroem_method))
+    SetParam(p, "nystroem_method", convert(Bool, nystroem_method))
   end
   if !ismissing(offset)
-    IOSetParam("offset", convert(Float64, offset))
+    SetParam(p, "offset", convert(Float64, offset))
   end
   if !ismissing(sampling)
-    IOSetParam("sampling", convert(String, sampling))
+    SetParam(p, "sampling", convert(String, sampling))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output")
+  SetPassed(p, "output")
   # Call the program.
-  kernel_pca_mlpackMain()
+  call_kernel_pca(p, t)
 
-  return IOGetParamMat("output", points_are_rows)
+  results = (GetParamMat(p, "output", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

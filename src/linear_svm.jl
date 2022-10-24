@@ -2,14 +2,14 @@ export linear_svm
 
 import ..LinearSVMModel
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const linear_svmLibrary = mlpack_jll.libmlpack_julia_linear_svm
 
 # Call the C binding of the mlpack linear_svm binding.
-function linear_svm_mlpackMain()
-  success = ccall((:linear_svm, linear_svmLibrary), Bool, ())
+function call_linear_svm(p, t)
+  success = ccall((:mlpack_linear_svm, linear_svmLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module linear_svm_internal
 import ...LinearSVMModel
 
 # Get the value of a model pointer parameter of type LinearSVMModel.
-function IOGetParamLinearSVMModel(paramName::String)::LinearSVMModel
-  LinearSVMModel(ccall((:IO_GetParamLinearSVMModelPtr, linear_svmLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamLinearSVMModel(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::LinearSVMModel
+  ptr = ccall((:GetParamLinearSVMModelPtr, linear_svmLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return LinearSVMModel(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type LinearSVMModel.
-function IOSetParamLinearSVMModel(paramName::String, model::LinearSVMModel)
-  ccall((:IO_SetParamLinearSVMModelPtr, linear_svmLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamLinearSVMModel(params::Ptr{Nothing}, paramName::String, model::LinearSVMModel)
+  ccall((:SetParamLinearSVMModelPtr, linear_svmLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteLinearSVMModel(ptr::Ptr{Nothing})
+  ccall((:DeleteLinearSVMModelPtr, linear_svmLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeLinearSVMModel(stream::IO, model::LinearSVMModel)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeLinearSVMModelPtr, linear_svmLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeLinearSVMModelPtr, linear_svmLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeLinearSVMModel(stream::IO)::LinearSVMModel
-  buffer = read(stream)
-  LinearSVMModel(ccall((:DeserializeLinearSVMModelPtr, linear_svmLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer LinearSVMModel(ccall((:DeserializeLinearSVMModelPtr, linear_svmLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -187,70 +195,82 @@ function linear_svm(;
   # Force the symbols to load.
   ccall((:loadSymbols, linear_svmLibrary), Nothing, ());
 
-  IORestoreSettings("Linear SVM is an L2-regularized support vector machine.")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("linear_svm")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(delta)
-    IOSetParam("delta", convert(Float64, delta))
+    SetParam(p, "delta", convert(Float64, delta))
   end
   if !ismissing(epochs)
-    IOSetParam("epochs", convert(Int, epochs))
+    SetParam(p, "epochs", convert(Int, epochs))
   end
   if !ismissing(input_model)
-    linear_svm_internal.IOSetParamLinearSVMModel("input_model", convert(LinearSVMModel, input_model))
+    push!(modelPtrs, convert(LinearSVMModel, input_model).ptr)
+    linear_svm_internal.SetParamLinearSVMModel(p, "input_model", convert(LinearSVMModel, input_model))
   end
   if !ismissing(labels)
-    IOSetParamURow("labels", labels)
+    SetParamURow(p, "labels", labels, juliaOwnedMemory)
   end
   if !ismissing(lambda)
-    IOSetParam("lambda", convert(Float64, lambda))
+    SetParam(p, "lambda", convert(Float64, lambda))
   end
   if !ismissing(max_iterations)
-    IOSetParam("max_iterations", convert(Int, max_iterations))
+    SetParam(p, "max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(no_intercept)
-    IOSetParam("no_intercept", convert(Bool, no_intercept))
+    SetParam(p, "no_intercept", convert(Bool, no_intercept))
   end
   if !ismissing(num_classes)
-    IOSetParam("num_classes", convert(Int, num_classes))
+    SetParam(p, "num_classes", convert(Int, num_classes))
   end
   if !ismissing(optimizer)
-    IOSetParam("optimizer", convert(String, optimizer))
+    SetParam(p, "optimizer", convert(String, optimizer))
   end
   if !ismissing(seed)
-    IOSetParam("seed", convert(Int, seed))
+    SetParam(p, "seed", convert(Int, seed))
   end
   if !ismissing(shuffle)
-    IOSetParam("shuffle", convert(Bool, shuffle))
+    SetParam(p, "shuffle", convert(Bool, shuffle))
   end
   if !ismissing(step_size)
-    IOSetParam("step_size", convert(Float64, step_size))
+    SetParam(p, "step_size", convert(Float64, step_size))
   end
   if !ismissing(test)
-    IOSetParamMat("test", test, points_are_rows)
+    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(test_labels)
-    IOSetParamURow("test_labels", test_labels)
+    SetParamURow(p, "test_labels", test_labels, juliaOwnedMemory)
   end
   if !ismissing(tolerance)
-    IOSetParam("tolerance", convert(Float64, tolerance))
+    SetParam(p, "tolerance", convert(Float64, tolerance))
   end
   if !ismissing(training)
-    IOSetParamMat("training", training, points_are_rows)
+    SetParamMat(p, "training", training, points_are_rows, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output_model")
-  IOSetPassed("predictions")
-  IOSetPassed("probabilities")
+  SetPassed(p, "output_model")
+  SetPassed(p, "predictions")
+  SetPassed(p, "probabilities")
   # Call the program.
-  linear_svm_mlpackMain()
+  call_linear_svm(p, t)
 
-  return linear_svm_internal.IOGetParamLinearSVMModel("output_model"),
-         IOGetParamURow("predictions"),
-         IOGetParamMat("probabilities", points_are_rows)
+  results = (linear_svm_internal.GetParamLinearSVMModel(p, "output_model", modelPtrs),
+             GetParamURow(p, "predictions", juliaOwnedMemory),
+             GetParamMat(p, "probabilities", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

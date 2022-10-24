@@ -1,14 +1,14 @@
 export kmeans
 
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const kmeansLibrary = mlpack_jll.libmlpack_julia_kmeans
 
 # Call the C binding of the mlpack kmeans binding.
-function kmeans_mlpackMain()
-  success = ccall((:kmeans, kmeansLibrary), Bool, ())
+function call_kmeans(p, t)
+  success = ccall((:mlpack_kmeans, kmeansLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -22,7 +22,7 @@ module kmeans_internal
 end # module
 
 """
-    kmeans(clusters, input; [algorithm, allow_empty_clusters, in_place, initial_centroids, kill_empty_clusters, labels_only, max_iterations, percentage, refined_start, samplings, seed, verbose])
+    kmeans(clusters, input; [algorithm, allow_empty_clusters, in_place, initial_centroids, kill_empty_clusters, kmeans_plus_plus, labels_only, max_iterations, percentage, refined_start, samplings, seed, verbose])
 
 This program performs K-Means clustering on the given dataset.  It can return
 the learned cluster assignments, and the centroids of the clusters.  Empty
@@ -30,12 +30,15 @@ clusters are not allowed by default; when a cluster becomes empty, the point
 furthest from the centroid of the cluster with maximum variance is taken to fill
 that cluster.
 
-Optionally, the Bradley and Fayyad approach ("Refining initial points for
-k-means clustering", 1998) can be used to select initial points by specifying
-the `refined_start` parameter.  This approach works by taking random samplings
-of the dataset; to specify the number of samplings, the `samplings` parameter is
-used, and to specify the percentage of the dataset to be used in each sample,
-the `percentage` parameter is used (it should be a value between 0.0 and 1.0).
+Optionally, the strategy to choose initial centroids can be specified.  The
+k-means++ algorithm can be used to choose initial centroids with the
+`kmeans_plus_plus` parameter.  The Bradley and Fayyad approach ("Refining
+initial points for k-means clustering", 1998) can be used to select initial
+points by specifying the `refined_start` parameter.  This approach works by
+taking random samplings of the dataset; to specify the number of samplings, the
+`samplings` parameter is used, and to specify the percentage of the dataset to
+be used in each sample, the `percentage` parameter is used (it should be a value
+between 0.0 and 1.0).
 
 There are several options available for the algorithm used for each Lloyd
 iteration, specified with the `algorithm`  option.  The standard O(kN) approach
@@ -105,6 +108,9 @@ julia> final, _ = kmeans(10, data; initial_centroids=initial,
  - `kill_empty_clusters::Bool`: Remove empty clusters when they occur. 
       Default value `false`.
       
+ - `kmeans_plus_plus::Bool`: Use the k-means++ initialization strategy to
+      choose initial points.  Default value `false`.
+      
  - `labels_only::Bool`: Only output labels into output file.  Default
       value `false`.
       
@@ -143,6 +149,7 @@ function kmeans(clusters::Int,
                 in_place::Union{Bool, Missing} = missing,
                 initial_centroids = missing,
                 kill_empty_clusters::Union{Bool, Missing} = missing,
+                kmeans_plus_plus::Union{Bool, Missing} = missing,
                 labels_only::Union{Bool, Missing} = missing,
                 max_iterations::Union{Int, Missing} = missing,
                 percentage::Union{Float64, Missing} = missing,
@@ -154,55 +161,69 @@ function kmeans(clusters::Int,
   # Force the symbols to load.
   ccall((:loadSymbols, kmeansLibrary), Nothing, ());
 
-  IORestoreSettings("K-Means Clustering")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("kmeans")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  IOSetParam("clusters", clusters)
-  IOSetParamMat("input", input, points_are_rows)
+  SetParam(p, "clusters", clusters)
+  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
   if !ismissing(algorithm)
-    IOSetParam("algorithm", convert(String, algorithm))
+    SetParam(p, "algorithm", convert(String, algorithm))
   end
   if !ismissing(allow_empty_clusters)
-    IOSetParam("allow_empty_clusters", convert(Bool, allow_empty_clusters))
+    SetParam(p, "allow_empty_clusters", convert(Bool, allow_empty_clusters))
   end
   if !ismissing(in_place)
-    IOSetParam("in_place", convert(Bool, in_place))
+    SetParam(p, "in_place", convert(Bool, in_place))
   end
   if !ismissing(initial_centroids)
-    IOSetParamMat("initial_centroids", initial_centroids, points_are_rows)
+    SetParamMat(p, "initial_centroids", initial_centroids, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(kill_empty_clusters)
-    IOSetParam("kill_empty_clusters", convert(Bool, kill_empty_clusters))
+    SetParam(p, "kill_empty_clusters", convert(Bool, kill_empty_clusters))
+  end
+  if !ismissing(kmeans_plus_plus)
+    SetParam(p, "kmeans_plus_plus", convert(Bool, kmeans_plus_plus))
   end
   if !ismissing(labels_only)
-    IOSetParam("labels_only", convert(Bool, labels_only))
+    SetParam(p, "labels_only", convert(Bool, labels_only))
   end
   if !ismissing(max_iterations)
-    IOSetParam("max_iterations", convert(Int, max_iterations))
+    SetParam(p, "max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(percentage)
-    IOSetParam("percentage", convert(Float64, percentage))
+    SetParam(p, "percentage", convert(Float64, percentage))
   end
   if !ismissing(refined_start)
-    IOSetParam("refined_start", convert(Bool, refined_start))
+    SetParam(p, "refined_start", convert(Bool, refined_start))
   end
   if !ismissing(samplings)
-    IOSetParam("samplings", convert(Int, samplings))
+    SetParam(p, "samplings", convert(Int, samplings))
   end
   if !ismissing(seed)
-    IOSetParam("seed", convert(Int, seed))
+    SetParam(p, "seed", convert(Int, seed))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("centroid")
-  IOSetPassed("output")
+  SetPassed(p, "centroid")
+  SetPassed(p, "output")
   # Call the program.
-  kmeans_mlpackMain()
+  call_kmeans(p, t)
 
-  return IOGetParamMat("centroid", points_are_rows),
-         IOGetParamMat("output", points_are_rows)
+  results = (GetParamMat(p, "centroid", points_are_rows, juliaOwnedMemory),
+             GetParamMat(p, "output", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

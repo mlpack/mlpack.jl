@@ -5,8 +5,8 @@ import Serialization
 """
     serialize_bin(stream::IO, model)
 
-Serialize an mlpack model `model` in the binary boost::serialization
-format to the given `stream`.  Example:
+Serialize an mlpack model `model` in the binary cereal format to the 
+given `stream`.  Example:
 
 ```julia
 _, model, _, _ = mlpack.logistic_regression(training=x, labels=y)
@@ -29,32 +29,15 @@ type of the model manually with the `t` argument.  Example usage:
 lr_model = mlpack.deserialize_bin(stream, LogisticRegression)
 ```
 
-Only use this if you have saved the model in the boost::serialization
-binary format using `serialize_bin()` or an mlpack binding in another
-language!  If you used `Serialization.serialize()` to serialize your
-model, then use `Serialization.deserialize()` to deserialize it.
+Only use this if you have saved the model in the cereal binary format 
+using `serialize_bin()` or an mlpack binding in another language!  If 
+you used `Serialization.serialize()` to serialize your model, then use
+`Serialization.deserialize()` to deserialize it.
 
 Then, the returned model can be passed to appropriate mlpack functions
 for machine learning tasks.
 """
 function deserialize_bin(stream::IO, t::Type) end
-
-serialize_bin(stream::IO, model::AdaBoostModel) =
-    _Internal.adaboost_internal.serializeAdaBoostModel(stream, model)
-deserialize_bin(stream::IO, ::Type{AdaBoostModel}) =
-    _Internal.adaboost_internal.deserializeAdaBoostModel(stream)
-
-function Serialization.serialize(s::Serialization.AbstractSerializer,
-                                 model::AdaBoostModel)
-  Serialization.writetag(s.io, Serialization.OBJECT_TAG)
-  Serialization.serialize(s, AdaBoostModel)
-  serialize_bin(s.io, model)
-end
-
-function Serialization.deserialize(s::Serialization.AbstractSerializer,
-                                   ::Type{AdaBoostModel})
-  deserialize_bin(s.io, AdaBoostModel)
-end
 
 serialize_bin(stream::IO, model::ApproxKFNModel) =
     _Internal.approx_kfn_internal.serializeApproxKFNModel(stream, model)
@@ -105,23 +88,6 @@ end
 function Serialization.deserialize(s::Serialization.AbstractSerializer,
                                    ::Type{CFModel})
   deserialize_bin(s.io, CFModel)
-end
-
-serialize_bin(stream::IO, model::DSModel) =
-    _Internal.decision_stump_internal.serializeDSModel(stream, model)
-deserialize_bin(stream::IO, ::Type{DSModel}) =
-    _Internal.decision_stump_internal.deserializeDSModel(stream)
-
-function Serialization.serialize(s::Serialization.AbstractSerializer,
-                                 model::DSModel)
-  Serialization.writetag(s.io, Serialization.OBJECT_TAG)
-  Serialization.serialize(s, DSModel)
-  serialize_bin(s.io, model)
-end
-
-function Serialization.deserialize(s::Serialization.AbstractSerializer,
-                                   ::Type{DSModel})
-  deserialize_bin(s.io, DSModel)
 end
 
 serialize_bin(stream::IO, model::DecisionTreeModel) =
@@ -258,23 +224,6 @@ end
 function Serialization.deserialize(s::Serialization.AbstractSerializer,
                                    ::Type{LARS})
   deserialize_bin(s.io, LARS)
-end
-
-serialize_bin(stream::IO, model::LinearRegression) =
-    _Internal.linear_regression_internal.serializeLinearRegression(stream, model)
-deserialize_bin(stream::IO, ::Type{LinearRegression}) =
-    _Internal.linear_regression_internal.deserializeLinearRegression(stream)
-
-function Serialization.serialize(s::Serialization.AbstractSerializer,
-                                 model::LinearRegression)
-  Serialization.writetag(s.io, Serialization.OBJECT_TAG)
-  Serialization.serialize(s, LinearRegression)
-  serialize_bin(s.io, model)
-end
-
-function Serialization.deserialize(s::Serialization.AbstractSerializer,
-                                   ::Type{LinearRegression})
-  deserialize_bin(s.io, LinearRegression)
 end
 
 serialize_bin(stream::IO, model::LinearSVMModel) =
@@ -447,21 +396,21 @@ function Serialization.deserialize(s::Serialization.AbstractSerializer,
   deserialize_bin(s.io, RandomForestModel)
 end
 
-serialize_bin(stream::IO, model::RANNModel) =
-    _Internal.krann_internal.serializeRANNModel(stream, model)
-deserialize_bin(stream::IO, ::Type{RANNModel}) =
-    _Internal.krann_internal.deserializeRANNModel(stream)
+serialize_bin(stream::IO, model::RAModel) =
+    _Internal.krann_internal.serializeRAModel(stream, model)
+deserialize_bin(stream::IO, ::Type{RAModel}) =
+    _Internal.krann_internal.deserializeRAModel(stream)
 
 function Serialization.serialize(s::Serialization.AbstractSerializer,
-                                 model::RANNModel)
+                                 model::RAModel)
   Serialization.writetag(s.io, Serialization.OBJECT_TAG)
-  Serialization.serialize(s, RANNModel)
+  Serialization.serialize(s, RAModel)
   serialize_bin(s.io, model)
 end
 
 function Serialization.deserialize(s::Serialization.AbstractSerializer,
-                                   ::Type{RANNModel})
-  deserialize_bin(s.io, RANNModel)
+                                   ::Type{RAModel})
+  deserialize_bin(s.io, RAModel)
 end
 
 serialize_bin(stream::IO, model::SoftmaxRegression) =
@@ -496,5 +445,39 @@ end
 function Serialization.deserialize(s::Serialization.AbstractSerializer,
                                    ::Type{SparseCoding})
   deserialize_bin(s.io, SparseCoding)
+end
+
+serialize_bin(stream::IO, model::AdaBoostModel) =
+    _Internal.adaboost_internal.serializeAdaBoostModel(stream, model)
+deserialize_bin(stream::IO, ::Type{AdaBoostModel}) =
+    _Internal.adaboost_internal.deserializeAdaBoostModel(stream)
+
+function Serialization.serialize(s::Serialization.AbstractSerializer,
+                                 model::AdaBoostModel)
+  Serialization.writetag(s.io, Serialization.OBJECT_TAG)
+  Serialization.serialize(s, AdaBoostModel)
+  serialize_bin(s.io, model)
+end
+
+function Serialization.deserialize(s::Serialization.AbstractSerializer,
+                                   ::Type{AdaBoostModel})
+  deserialize_bin(s.io, AdaBoostModel)
+end
+
+serialize_bin(stream::IO, model::LinearRegression) =
+    _Internal.linear_regression_internal.serializeLinearRegression(stream, model)
+deserialize_bin(stream::IO, ::Type{LinearRegression}) =
+    _Internal.linear_regression_internal.deserializeLinearRegression(stream)
+
+function Serialization.serialize(s::Serialization.AbstractSerializer,
+                                 model::LinearRegression)
+  Serialization.writetag(s.io, Serialization.OBJECT_TAG)
+  Serialization.serialize(s, LinearRegression)
+  serialize_bin(s.io, model)
+end
+
+function Serialization.deserialize(s::Serialization.AbstractSerializer,
+                                   ::Type{LinearRegression})
+  deserialize_bin(s.io, LinearRegression)
 end
 

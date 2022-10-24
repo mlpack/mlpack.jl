@@ -1,15 +1,15 @@
 export krann
 
-import ..RANNModel
+import ..RAModel
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const krannLibrary = mlpack_jll.libmlpack_julia_krann
 
 # Call the C binding of the mlpack krann binding.
-function krann_mlpackMain()
-  success = ccall((:krann, krannLibrary), Bool, ())
+function call_krann(p, t)
+  success = ccall((:mlpack_krann, krannLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -20,29 +20,37 @@ end
 module krann_internal
   import ..krannLibrary
 
-import ...RANNModel
+import ...RAModel
 
-# Get the value of a model pointer parameter of type RANNModel.
-function IOGetParamRANNModel(paramName::String)::RANNModel
-  RANNModel(ccall((:IO_GetParamRANNModelPtr, krannLibrary), Ptr{Nothing}, (Cstring,), paramName))
+# Get the value of a model pointer parameter of type RAModel.
+function GetParamRAModel(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::RAModel
+  ptr = ccall((:GetParamRAModelPtr, krannLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return RAModel(ptr; finalize=!(ptr in modelPtrs))
 end
 
-# Set the value of a model pointer parameter of type RANNModel.
-function IOSetParamRANNModel(paramName::String, model::RANNModel)
-  ccall((:IO_SetParamRANNModelPtr, krannLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+# Set the value of a model pointer parameter of type RAModel.
+function SetParamRAModel(params::Ptr{Nothing}, paramName::String, model::RAModel)
+  ccall((:SetParamRAModelPtr, krannLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteRAModel(ptr::Ptr{Nothing})
+  ccall((:DeleteRAModelPtr, krannLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
-function serializeRANNModel(stream::IO, model::RANNModel)
+function serializeRAModel(stream::IO, model::RAModel)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeRANNModelPtr, krannLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeRAModelPtr, krannLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
-function deserializeRANNModel(stream::IO)::RANNModel
-  buffer = read(stream)
-  RANNModel(ccall((:DeserializeRANNModelPtr, krannLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+function deserializeRAModel(stream::IO)::RAModel
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer RAModel(ccall((:DeserializeRAModelPtr, krannLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -86,7 +94,7 @@ those two points.
  - `first_leaf_exact::Bool`: The flag to trigger sampling only after
       exactly exploring the first leaf.  Default value `false`.
       
- - `input_model::RANNModel`: Pre-trained kNN model.
+ - `input_model::RAModel`: Pre-trained kNN model.
  - `k::Int`: Number of nearest neighbors to find.  Default value `0`.
 
  - `leaf_size::Int`: Leaf size for tree building (used for kd-trees, UB
@@ -129,14 +137,14 @@ those two points.
 
  - `distances::Array{Float64, 2}`: Matrix to output distances into.
  - `neighbors::Array{Int, 2}`: Matrix to output neighbors into.
- - `output_model::RANNModel`: If specified, the kNN model will be output
+ - `output_model::RAModel`: If specified, the kNN model will be output
       here.
 
 """
 function krann(;
                alpha::Union{Float64, Missing} = missing,
                first_leaf_exact::Union{Bool, Missing} = missing,
-               input_model::Union{RANNModel, Missing} = missing,
+               input_model::Union{RAModel, Missing} = missing,
                k::Union{Int, Missing} = missing,
                leaf_size::Union{Int, Missing} = missing,
                naive::Union{Bool, Missing} = missing,
@@ -154,67 +162,79 @@ function krann(;
   # Force the symbols to load.
   ccall((:loadSymbols, krannLibrary), Nothing, ());
 
-  IORestoreSettings("K-Rank-Approximate-Nearest-Neighbors (kRANN)")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("krann")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(alpha)
-    IOSetParam("alpha", convert(Float64, alpha))
+    SetParam(p, "alpha", convert(Float64, alpha))
   end
   if !ismissing(first_leaf_exact)
-    IOSetParam("first_leaf_exact", convert(Bool, first_leaf_exact))
+    SetParam(p, "first_leaf_exact", convert(Bool, first_leaf_exact))
   end
   if !ismissing(input_model)
-    krann_internal.IOSetParamRANNModel("input_model", convert(RANNModel, input_model))
+    push!(modelPtrs, convert(RAModel, input_model).ptr)
+    krann_internal.SetParamRAModel(p, "input_model", convert(RAModel, input_model))
   end
   if !ismissing(k)
-    IOSetParam("k", convert(Int, k))
+    SetParam(p, "k", convert(Int, k))
   end
   if !ismissing(leaf_size)
-    IOSetParam("leaf_size", convert(Int, leaf_size))
+    SetParam(p, "leaf_size", convert(Int, leaf_size))
   end
   if !ismissing(naive)
-    IOSetParam("naive", convert(Bool, naive))
+    SetParam(p, "naive", convert(Bool, naive))
   end
   if !ismissing(query)
-    IOSetParamMat("query", query, points_are_rows)
+    SetParamMat(p, "query", query, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(random_basis)
-    IOSetParam("random_basis", convert(Bool, random_basis))
+    SetParam(p, "random_basis", convert(Bool, random_basis))
   end
   if !ismissing(reference)
-    IOSetParamMat("reference", reference, points_are_rows)
+    SetParamMat(p, "reference", reference, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(sample_at_leaves)
-    IOSetParam("sample_at_leaves", convert(Bool, sample_at_leaves))
+    SetParam(p, "sample_at_leaves", convert(Bool, sample_at_leaves))
   end
   if !ismissing(seed)
-    IOSetParam("seed", convert(Int, seed))
+    SetParam(p, "seed", convert(Int, seed))
   end
   if !ismissing(single_mode)
-    IOSetParam("single_mode", convert(Bool, single_mode))
+    SetParam(p, "single_mode", convert(Bool, single_mode))
   end
   if !ismissing(single_sample_limit)
-    IOSetParam("single_sample_limit", convert(Int, single_sample_limit))
+    SetParam(p, "single_sample_limit", convert(Int, single_sample_limit))
   end
   if !ismissing(tau)
-    IOSetParam("tau", convert(Float64, tau))
+    SetParam(p, "tau", convert(Float64, tau))
   end
   if !ismissing(tree_type)
-    IOSetParam("tree_type", convert(String, tree_type))
+    SetParam(p, "tree_type", convert(String, tree_type))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("distances")
-  IOSetPassed("neighbors")
-  IOSetPassed("output_model")
+  SetPassed(p, "distances")
+  SetPassed(p, "neighbors")
+  SetPassed(p, "output_model")
   # Call the program.
-  krann_mlpackMain()
+  call_krann(p, t)
 
-  return IOGetParamMat("distances", points_are_rows),
-         IOGetParamUMat("neighbors", points_are_rows),
-         krann_internal.IOGetParamRANNModel("output_model")
+  results = (GetParamMat(p, "distances", points_are_rows, juliaOwnedMemory),
+             GetParamUMat(p, "neighbors", points_are_rows, juliaOwnedMemory),
+             krann_internal.GetParamRAModel(p, "output_model", modelPtrs))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

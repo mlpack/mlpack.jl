@@ -2,14 +2,14 @@ export lars
 
 import ..LARS
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const larsLibrary = mlpack_jll.libmlpack_julia_lars
 
 # Call the C binding of the mlpack lars binding.
-function lars_mlpackMain()
-  success = ccall((:lars, larsLibrary), Bool, ())
+function call_lars(p, t)
+  success = ccall((:mlpack_lars, larsLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module lars_internal
 import ...LARS
 
 # Get the value of a model pointer parameter of type LARS.
-function IOGetParamLARS(paramName::String)::LARS
-  LARS(ccall((:IO_GetParamLARSPtr, larsLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamLARS(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::LARS
+  ptr = ccall((:GetParamLARSPtr, larsLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return LARS(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type LARS.
-function IOSetParamLARS(paramName::String, model::LARS)
-  ccall((:IO_SetParamLARSPtr, larsLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamLARS(params::Ptr{Nothing}, paramName::String, model::LARS)
+  ccall((:SetParamLARSPtr, larsLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteLARS(ptr::Ptr{Nothing})
+  ccall((:DeleteLARSPtr, larsLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeLARS(stream::IO, model::LARS)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeLARSPtr, larsLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeLARSPtr, larsLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeLARS(stream::IO)::LARS
-  buffer = read(stream)
-  LARS(ccall((:DeserializeLARSPtr, larsLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer LARS(ccall((:DeserializeLARSPtr, larsLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -148,41 +156,53 @@ function lars(;
   # Force the symbols to load.
   ccall((:loadSymbols, larsLibrary), Nothing, ());
 
-  IORestoreSettings("LARS")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("lars")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(input)
-    IOSetParamMat("input", input, points_are_rows)
+    SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(input_model)
-    lars_internal.IOSetParamLARS("input_model", convert(LARS, input_model))
+    push!(modelPtrs, convert(LARS, input_model).ptr)
+    lars_internal.SetParamLARS(p, "input_model", convert(LARS, input_model))
   end
   if !ismissing(lambda1)
-    IOSetParam("lambda1", convert(Float64, lambda1))
+    SetParam(p, "lambda1", convert(Float64, lambda1))
   end
   if !ismissing(lambda2)
-    IOSetParam("lambda2", convert(Float64, lambda2))
+    SetParam(p, "lambda2", convert(Float64, lambda2))
   end
   if !ismissing(responses)
-    IOSetParamMat("responses", responses, points_are_rows)
+    SetParamMat(p, "responses", responses, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(test)
-    IOSetParamMat("test", test, points_are_rows)
+    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(use_cholesky)
-    IOSetParam("use_cholesky", convert(Bool, use_cholesky))
+    SetParam(p, "use_cholesky", convert(Bool, use_cholesky))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output_model")
-  IOSetPassed("output_predictions")
+  SetPassed(p, "output_model")
+  SetPassed(p, "output_predictions")
   # Call the program.
-  lars_mlpackMain()
+  call_lars(p, t)
 
-  return lars_internal.IOGetParamLARS("output_model"),
-         IOGetParamMat("output_predictions", points_are_rows)
+  results = (lars_internal.GetParamLARS(p, "output_model", modelPtrs),
+             GetParamMat(p, "output_predictions", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

@@ -2,14 +2,14 @@ export perceptron
 
 import ..PerceptronModel
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const perceptronLibrary = mlpack_jll.libmlpack_julia_perceptron
 
 # Call the C binding of the mlpack perceptron binding.
-function perceptron_mlpackMain()
-  success = ccall((:perceptron, perceptronLibrary), Bool, ())
+function call_perceptron(p, t)
+  success = ccall((:mlpack_perceptron, perceptronLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module perceptron_internal
 import ...PerceptronModel
 
 # Get the value of a model pointer parameter of type PerceptronModel.
-function IOGetParamPerceptronModel(paramName::String)::PerceptronModel
-  PerceptronModel(ccall((:IO_GetParamPerceptronModelPtr, perceptronLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamPerceptronModel(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::PerceptronModel
+  ptr = ccall((:GetParamPerceptronModelPtr, perceptronLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return PerceptronModel(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type PerceptronModel.
-function IOSetParamPerceptronModel(paramName::String, model::PerceptronModel)
-  ccall((:IO_SetParamPerceptronModelPtr, perceptronLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamPerceptronModel(params::Ptr{Nothing}, paramName::String, model::PerceptronModel)
+  ccall((:SetParamPerceptronModelPtr, perceptronLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeletePerceptronModel(ptr::Ptr{Nothing})
+  ccall((:DeletePerceptronModelPtr, perceptronLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializePerceptronModel(stream::IO, model::PerceptronModel)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializePerceptronModelPtr, perceptronLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializePerceptronModelPtr, perceptronLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializePerceptronModel(stream::IO)::PerceptronModel
-  buffer = read(stream)
-  PerceptronModel(ccall((:DeserializePerceptronModelPtr, perceptronLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer PerceptronModel(ccall((:DeserializePerceptronModelPtr, perceptronLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -141,37 +149,49 @@ function perceptron(;
   # Force the symbols to load.
   ccall((:loadSymbols, perceptronLibrary), Nothing, ());
 
-  IORestoreSettings("Perceptron")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("perceptron")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(input_model)
-    perceptron_internal.IOSetParamPerceptronModel("input_model", convert(PerceptronModel, input_model))
+    push!(modelPtrs, convert(PerceptronModel, input_model).ptr)
+    perceptron_internal.SetParamPerceptronModel(p, "input_model", convert(PerceptronModel, input_model))
   end
   if !ismissing(labels)
-    IOSetParamURow("labels", labels)
+    SetParamURow(p, "labels", labels, juliaOwnedMemory)
   end
   if !ismissing(max_iterations)
-    IOSetParam("max_iterations", convert(Int, max_iterations))
+    SetParam(p, "max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(test)
-    IOSetParamMat("test", test, points_are_rows)
+    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(training)
-    IOSetParamMat("training", training, points_are_rows)
+    SetParamMat(p, "training", training, points_are_rows, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output")
-  IOSetPassed("output_model")
-  IOSetPassed("predictions")
+  SetPassed(p, "output")
+  SetPassed(p, "output_model")
+  SetPassed(p, "predictions")
   # Call the program.
-  perceptron_mlpackMain()
+  call_perceptron(p, t)
 
-  return IOGetParamURow("output"),
-         perceptron_internal.IOGetParamPerceptronModel("output_model"),
-         IOGetParamURow("predictions")
+  results = (GetParamURow(p, "output", juliaOwnedMemory),
+             perceptron_internal.GetParamPerceptronModel(p, "output_model", modelPtrs),
+             GetParamURow(p, "predictions", juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

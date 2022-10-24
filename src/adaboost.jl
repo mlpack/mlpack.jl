@@ -2,14 +2,14 @@ export adaboost
 
 import ..AdaBoostModel
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const adaboostLibrary = mlpack_jll.libmlpack_julia_adaboost
 
 # Call the C binding of the mlpack adaboost binding.
-function adaboost_mlpackMain()
-  success = ccall((:adaboost, adaboostLibrary), Bool, ())
+function call_adaboost(p, t)
+  success = ccall((:mlpack_adaboost, adaboostLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module adaboost_internal
 import ...AdaBoostModel
 
 # Get the value of a model pointer parameter of type AdaBoostModel.
-function IOGetParamAdaBoostModel(paramName::String)::AdaBoostModel
-  AdaBoostModel(ccall((:IO_GetParamAdaBoostModelPtr, adaboostLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamAdaBoostModel(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::AdaBoostModel
+  ptr = ccall((:GetParamAdaBoostModelPtr, adaboostLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return AdaBoostModel(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type AdaBoostModel.
-function IOSetParamAdaBoostModel(paramName::String, model::AdaBoostModel)
-  ccall((:IO_SetParamAdaBoostModelPtr, adaboostLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamAdaBoostModel(params::Ptr{Nothing}, paramName::String, model::AdaBoostModel)
+  ccall((:SetParamAdaBoostModelPtr, adaboostLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteAdaBoostModel(ptr::Ptr{Nothing})
+  ccall((:DeleteAdaBoostModelPtr, adaboostLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeAdaBoostModel(stream::IO, model::AdaBoostModel)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeAdaBoostModelPtr, adaboostLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeAdaBoostModelPtr, adaboostLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeAdaBoostModel(stream::IO)::AdaBoostModel
-  buffer = read(stream)
-  AdaBoostModel(ccall((:DeserializeAdaBoostModelPtr, adaboostLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer AdaBoostModel(ccall((:DeserializeAdaBoostModelPtr, adaboostLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -140,45 +148,57 @@ function adaboost(;
   # Force the symbols to load.
   ccall((:loadSymbols, adaboostLibrary), Nothing, ());
 
-  IORestoreSettings("AdaBoost")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("adaboost")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(input_model)
-    adaboost_internal.IOSetParamAdaBoostModel("input_model", convert(AdaBoostModel, input_model))
+    push!(modelPtrs, convert(AdaBoostModel, input_model).ptr)
+    adaboost_internal.SetParamAdaBoostModel(p, "input_model", convert(AdaBoostModel, input_model))
   end
   if !ismissing(iterations)
-    IOSetParam("iterations", convert(Int, iterations))
+    SetParam(p, "iterations", convert(Int, iterations))
   end
   if !ismissing(labels)
-    IOSetParamURow("labels", labels)
+    SetParamURow(p, "labels", labels, juliaOwnedMemory)
   end
   if !ismissing(test)
-    IOSetParamMat("test", test, points_are_rows)
+    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(tolerance)
-    IOSetParam("tolerance", convert(Float64, tolerance))
+    SetParam(p, "tolerance", convert(Float64, tolerance))
   end
   if !ismissing(training)
-    IOSetParamMat("training", training, points_are_rows)
+    SetParamMat(p, "training", training, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(weak_learner)
-    IOSetParam("weak_learner", convert(String, weak_learner))
+    SetParam(p, "weak_learner", convert(String, weak_learner))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output")
-  IOSetPassed("output_model")
-  IOSetPassed("predictions")
-  IOSetPassed("probabilities")
+  SetPassed(p, "output")
+  SetPassed(p, "output_model")
+  SetPassed(p, "predictions")
+  SetPassed(p, "probabilities")
   # Call the program.
-  adaboost_mlpackMain()
+  call_adaboost(p, t)
 
-  return IOGetParamURow("output"),
-         adaboost_internal.IOGetParamAdaBoostModel("output_model"),
-         IOGetParamURow("predictions"),
-         IOGetParamMat("probabilities", points_are_rows)
+  results = (GetParamURow(p, "output", juliaOwnedMemory),
+             adaboost_internal.GetParamAdaBoostModel(p, "output_model", modelPtrs),
+             GetParamURow(p, "predictions", juliaOwnedMemory),
+             GetParamMat(p, "probabilities", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

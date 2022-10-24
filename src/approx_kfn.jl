@@ -2,14 +2,14 @@ export approx_kfn
 
 import ..ApproxKFNModel
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const approx_kfnLibrary = mlpack_jll.libmlpack_julia_approx_kfn
 
 # Call the C binding of the mlpack approx_kfn binding.
-function approx_kfn_mlpackMain()
-  success = ccall((:approx_kfn, approx_kfnLibrary), Bool, ())
+function call_approx_kfn(p, t)
+  success = ccall((:mlpack_approx_kfn, approx_kfnLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module approx_kfn_internal
 import ...ApproxKFNModel
 
 # Get the value of a model pointer parameter of type ApproxKFNModel.
-function IOGetParamApproxKFNModel(paramName::String)::ApproxKFNModel
-  ApproxKFNModel(ccall((:IO_GetParamApproxKFNModelPtr, approx_kfnLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamApproxKFNModel(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::ApproxKFNModel
+  ptr = ccall((:GetParamApproxKFNModelPtr, approx_kfnLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return ApproxKFNModel(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type ApproxKFNModel.
-function IOSetParamApproxKFNModel(paramName::String, model::ApproxKFNModel)
-  ccall((:IO_SetParamApproxKFNModelPtr, approx_kfnLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamApproxKFNModel(params::Ptr{Nothing}, paramName::String, model::ApproxKFNModel)
+  ccall((:SetParamApproxKFNModelPtr, approx_kfnLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteApproxKFNModel(ptr::Ptr{Nothing})
+  ccall((:DeleteApproxKFNModelPtr, approx_kfnLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeApproxKFNModel(stream::IO, model::ApproxKFNModel)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeApproxKFNModelPtr, approx_kfnLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeApproxKFNModelPtr, approx_kfnLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeApproxKFNModel(stream::IO)::ApproxKFNModel
-  buffer = read(stream)
-  ApproxKFNModel(ccall((:DeserializeApproxKFNModelPtr, approx_kfnLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer ApproxKFNModel(ccall((:DeserializeApproxKFNModelPtr, approx_kfnLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -168,49 +176,61 @@ function approx_kfn(;
   # Force the symbols to load.
   ccall((:loadSymbols, approx_kfnLibrary), Nothing, ());
 
-  IORestoreSettings("Approximate furthest neighbor search")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("approx_kfn")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(algorithm)
-    IOSetParam("algorithm", convert(String, algorithm))
+    SetParam(p, "algorithm", convert(String, algorithm))
   end
   if !ismissing(calculate_error)
-    IOSetParam("calculate_error", convert(Bool, calculate_error))
+    SetParam(p, "calculate_error", convert(Bool, calculate_error))
   end
   if !ismissing(exact_distances)
-    IOSetParamMat("exact_distances", exact_distances, points_are_rows)
+    SetParamMat(p, "exact_distances", exact_distances, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(input_model)
-    approx_kfn_internal.IOSetParamApproxKFNModel("input_model", convert(ApproxKFNModel, input_model))
+    push!(modelPtrs, convert(ApproxKFNModel, input_model).ptr)
+    approx_kfn_internal.SetParamApproxKFNModel(p, "input_model", convert(ApproxKFNModel, input_model))
   end
   if !ismissing(k)
-    IOSetParam("k", convert(Int, k))
+    SetParam(p, "k", convert(Int, k))
   end
   if !ismissing(num_projections)
-    IOSetParam("num_projections", convert(Int, num_projections))
+    SetParam(p, "num_projections", convert(Int, num_projections))
   end
   if !ismissing(num_tables)
-    IOSetParam("num_tables", convert(Int, num_tables))
+    SetParam(p, "num_tables", convert(Int, num_tables))
   end
   if !ismissing(query)
-    IOSetParamMat("query", query, points_are_rows)
+    SetParamMat(p, "query", query, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(reference)
-    IOSetParamMat("reference", reference, points_are_rows)
+    SetParamMat(p, "reference", reference, points_are_rows, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("distances")
-  IOSetPassed("neighbors")
-  IOSetPassed("output_model")
+  SetPassed(p, "distances")
+  SetPassed(p, "neighbors")
+  SetPassed(p, "output_model")
   # Call the program.
-  approx_kfn_mlpackMain()
+  call_approx_kfn(p, t)
 
-  return IOGetParamMat("distances", points_are_rows),
-         IOGetParamUMat("neighbors", points_are_rows),
-         approx_kfn_internal.IOGetParamApproxKFNModel("output_model")
+  results = (GetParamMat(p, "distances", points_are_rows, juliaOwnedMemory),
+             GetParamUMat(p, "neighbors", points_are_rows, juliaOwnedMemory),
+             approx_kfn_internal.GetParamApproxKFNModel(p, "output_model", modelPtrs))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

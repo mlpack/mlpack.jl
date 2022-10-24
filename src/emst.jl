@@ -1,14 +1,14 @@
 export emst
 
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const emstLibrary = mlpack_jll.libmlpack_julia_emst
 
 # Call the C binding of the mlpack emst binding.
-function emst_mlpackMain()
-  success = ccall((:emst, emstLibrary), Bool, ())
+function call_emst(p, t)
+  success = ccall((:mlpack_emst, emstLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -78,25 +78,36 @@ function emst(input;
   # Force the symbols to load.
   ccall((:loadSymbols, emstLibrary), Nothing, ());
 
-  IORestoreSettings("Fast Euclidean Minimum Spanning Tree")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("emst")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  IOSetParamMat("input", input, points_are_rows)
+  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
   if !ismissing(leaf_size)
-    IOSetParam("leaf_size", convert(Int, leaf_size))
+    SetParam(p, "leaf_size", convert(Int, leaf_size))
   end
   if !ismissing(naive)
-    IOSetParam("naive", convert(Bool, naive))
+    SetParam(p, "naive", convert(Bool, naive))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output")
+  SetPassed(p, "output")
   # Call the program.
-  emst_mlpackMain()
+  call_emst(p, t)
 
-  return IOGetParamMat("output", points_are_rows)
+  results = (GetParamMat(p, "output", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

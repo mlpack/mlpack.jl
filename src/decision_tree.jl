@@ -2,14 +2,14 @@ export decision_tree
 
 import ..DecisionTreeModel
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const decision_treeLibrary = mlpack_jll.libmlpack_julia_decision_tree
 
 # Call the C binding of the mlpack decision_tree binding.
-function decision_tree_mlpackMain()
-  success = ccall((:decision_tree, decision_treeLibrary), Bool, ())
+function call_decision_tree(p, t)
+  success = ccall((:mlpack_decision_tree, decision_treeLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module decision_tree_internal
 import ...DecisionTreeModel
 
 # Get the value of a model pointer parameter of type DecisionTreeModel.
-function IOGetParamDecisionTreeModel(paramName::String)::DecisionTreeModel
-  DecisionTreeModel(ccall((:IO_GetParamDecisionTreeModelPtr, decision_treeLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamDecisionTreeModel(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::DecisionTreeModel
+  ptr = ccall((:GetParamDecisionTreeModelPtr, decision_treeLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return DecisionTreeModel(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type DecisionTreeModel.
-function IOSetParamDecisionTreeModel(paramName::String, model::DecisionTreeModel)
-  ccall((:IO_SetParamDecisionTreeModelPtr, decision_treeLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamDecisionTreeModel(params::Ptr{Nothing}, paramName::String, model::DecisionTreeModel)
+  ccall((:SetParamDecisionTreeModelPtr, decision_treeLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteDecisionTreeModel(ptr::Ptr{Nothing})
+  ccall((:DeleteDecisionTreeModelPtr, decision_treeLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeDecisionTreeModel(stream::IO, model::DecisionTreeModel)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeDecisionTreeModelPtr, decision_treeLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeDecisionTreeModelPtr, decision_treeLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeDecisionTreeModel(stream::IO)::DecisionTreeModel
-  buffer = read(stream)
-  DecisionTreeModel(ccall((:DeserializeDecisionTreeModelPtr, decision_treeLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer DecisionTreeModel(ccall((:DeserializeDecisionTreeModelPtr, decision_treeLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -80,6 +88,7 @@ dataset contained in `data` with labels `labels`, saving the output model to
 
 ```julia
 julia> using CSV
+julia> data = CSV.read("data.csv")
 julia> labels = CSV.read("labels.csv"; type=Int)
 julia> tree, _, _ = decision_tree(labels=labels,
             minimum_gain_split=0.001, minimum_leaf_size=20,
@@ -92,6 +101,7 @@ predictions for each point to `predictions`, one could call
 
 ```julia
 julia> using CSV
+julia> test_set = CSV.read("test_set.csv")
 julia> test_labels = CSV.read("test_labels.csv"; type=Int)
 julia> _, predictions, _ = decision_tree(input_model=tree,
             test=test_set, test_labels=test_labels)
@@ -153,55 +163,67 @@ function decision_tree(;
   # Force the symbols to load.
   ccall((:loadSymbols, decision_treeLibrary), Nothing, ());
 
-  IORestoreSettings("Decision tree")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("decision_tree")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(input_model)
-    decision_tree_internal.IOSetParamDecisionTreeModel("input_model", convert(DecisionTreeModel, input_model))
+    push!(modelPtrs, convert(DecisionTreeModel, input_model).ptr)
+    decision_tree_internal.SetParamDecisionTreeModel(p, "input_model", convert(DecisionTreeModel, input_model))
   end
   if !ismissing(labels)
-    IOSetParamURow("labels", labels)
+    SetParamURow(p, "labels", labels, juliaOwnedMemory)
   end
   if !ismissing(maximum_depth)
-    IOSetParam("maximum_depth", convert(Int, maximum_depth))
+    SetParam(p, "maximum_depth", convert(Int, maximum_depth))
   end
   if !ismissing(minimum_gain_split)
-    IOSetParam("minimum_gain_split", convert(Float64, minimum_gain_split))
+    SetParam(p, "minimum_gain_split", convert(Float64, minimum_gain_split))
   end
   if !ismissing(minimum_leaf_size)
-    IOSetParam("minimum_leaf_size", convert(Int, minimum_leaf_size))
+    SetParam(p, "minimum_leaf_size", convert(Int, minimum_leaf_size))
   end
   if !ismissing(print_training_accuracy)
-    IOSetParam("print_training_accuracy", convert(Bool, print_training_accuracy))
+    SetParam(p, "print_training_accuracy", convert(Bool, print_training_accuracy))
   end
   if !ismissing(print_training_error)
-    IOSetParam("print_training_error", convert(Bool, print_training_error))
+    SetParam(p, "print_training_error", convert(Bool, print_training_error))
   end
   if !ismissing(test)
-    IOSetParam("test", convert(Tuple{Array{Bool, 1}, Array{Float64, 2}}, test), points_are_rows)
+    SetParam(p, "test", convert(Tuple{Array{Bool, 1}, Array{Float64, 2}}, test), points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(test_labels)
-    IOSetParamURow("test_labels", test_labels)
+    SetParamURow(p, "test_labels", test_labels, juliaOwnedMemory)
   end
   if !ismissing(training)
-    IOSetParam("training", convert(Tuple{Array{Bool, 1}, Array{Float64, 2}}, training), points_are_rows)
+    SetParam(p, "training", convert(Tuple{Array{Bool, 1}, Array{Float64, 2}}, training), points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(weights)
-    IOSetParamMat("weights", weights, points_are_rows)
+    SetParamMat(p, "weights", weights, points_are_rows, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output_model")
-  IOSetPassed("predictions")
-  IOSetPassed("probabilities")
+  SetPassed(p, "output_model")
+  SetPassed(p, "predictions")
+  SetPassed(p, "probabilities")
   # Call the program.
-  decision_tree_mlpackMain()
+  call_decision_tree(p, t)
 
-  return decision_tree_internal.IOGetParamDecisionTreeModel("output_model"),
-         IOGetParamURow("predictions"),
-         IOGetParamMat("probabilities", points_are_rows)
+  results = (decision_tree_internal.GetParamDecisionTreeModel(p, "output_model", modelPtrs),
+             GetParamURow(p, "predictions", juliaOwnedMemory),
+             GetParamMat(p, "probabilities", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

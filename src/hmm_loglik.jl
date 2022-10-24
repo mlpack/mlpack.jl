@@ -2,14 +2,14 @@ export hmm_loglik
 
 import ..HMMModel
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const hmm_loglikLibrary = mlpack_jll.libmlpack_julia_hmm_loglik
 
 # Call the C binding of the mlpack hmm_loglik binding.
-function hmm_loglik_mlpackMain()
-  success = ccall((:hmm_loglik, hmm_loglikLibrary), Bool, ())
+function call_hmm_loglik(p, t)
+  success = ccall((:mlpack_hmm_loglik, hmm_loglikLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module hmm_loglik_internal
 import ...HMMModel
 
 # Get the value of a model pointer parameter of type HMMModel.
-function IOGetParamHMMModel(paramName::String)::HMMModel
-  HMMModel(ccall((:IO_GetParamHMMModelPtr, hmm_loglikLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamHMMModel(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::HMMModel
+  ptr = ccall((:GetParamHMMModelPtr, hmm_loglikLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return HMMModel(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type HMMModel.
-function IOSetParamHMMModel(paramName::String, model::HMMModel)
-  ccall((:IO_SetParamHMMModelPtr, hmm_loglikLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamHMMModel(params::Ptr{Nothing}, paramName::String, model::HMMModel)
+  ccall((:SetParamHMMModelPtr, hmm_loglikLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteHMMModel(ptr::Ptr{Nothing})
+  ccall((:DeleteHMMModelPtr, hmm_loglikLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeHMMModel(stream::IO, model::HMMModel)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeHMMModelPtr, hmm_loglikLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeHMMModelPtr, hmm_loglikLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeHMMModel(stream::IO)::HMMModel
-  buffer = read(stream)
-  HMMModel(ccall((:DeserializeHMMModelPtr, hmm_loglikLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer HMMModel(ccall((:DeserializeHMMModelPtr, hmm_loglikLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -84,20 +92,32 @@ function hmm_loglik(input,
   # Force the symbols to load.
   ccall((:loadSymbols, hmm_loglikLibrary), Nothing, ());
 
-  IORestoreSettings("Hidden Markov Model (HMM) Sequence Log-Likelihood")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("hmm_loglik")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  IOSetParamMat("input", input, points_are_rows)
-  hmm_loglik_internal.IOSetParamHMMModel("input_model", convert(HMMModel, input_model))
+  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
+  push!(modelPtrs, convert(HMMModel, input_model).ptr)
+  hmm_loglik_internal.SetParamHMMModel(p, "input_model", convert(HMMModel, input_model))
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("log_likelihood")
+  SetPassed(p, "log_likelihood")
   # Call the program.
-  hmm_loglik_mlpackMain()
+  call_hmm_loglik(p, t)
 
-  return IOGetParamDouble("log_likelihood")
+  results = (GetParamDouble(p, "log_likelihood"))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

@@ -1,14 +1,14 @@
 export nmf
 
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const nmfLibrary = mlpack_jll.libmlpack_julia_nmf
 
 # Call the C binding of the mlpack nmf binding.
-function nmf_mlpackMain()
-  success = ccall((:nmf, nmfLibrary), Bool, ())
+function call_nmf(p, t)
+  success = ccall((:mlpack_nmf, nmfLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -97,40 +97,51 @@ function nmf(input,
   # Force the symbols to load.
   ccall((:loadSymbols, nmfLibrary), Nothing, ());
 
-  IORestoreSettings("Non-negative Matrix Factorization")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("nmf")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  IOSetParamMat("input", input, points_are_rows)
-  IOSetParam("rank", rank)
+  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
+  SetParam(p, "rank", rank)
   if !ismissing(initial_h)
-    IOSetParamMat("initial_h", initial_h, points_are_rows)
+    SetParamMat(p, "initial_h", initial_h, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(initial_w)
-    IOSetParamMat("initial_w", initial_w, points_are_rows)
+    SetParamMat(p, "initial_w", initial_w, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(max_iterations)
-    IOSetParam("max_iterations", convert(Int, max_iterations))
+    SetParam(p, "max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(min_residue)
-    IOSetParam("min_residue", convert(Float64, min_residue))
+    SetParam(p, "min_residue", convert(Float64, min_residue))
   end
   if !ismissing(seed)
-    IOSetParam("seed", convert(Int, seed))
+    SetParam(p, "seed", convert(Int, seed))
   end
   if !ismissing(update_rules)
-    IOSetParam("update_rules", convert(String, update_rules))
+    SetParam(p, "update_rules", convert(String, update_rules))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("h")
-  IOSetPassed("w")
+  SetPassed(p, "h")
+  SetPassed(p, "w")
   # Call the program.
-  nmf_mlpackMain()
+  call_nmf(p, t)
 
-  return IOGetParamMat("h", points_are_rows),
-         IOGetParamMat("w", points_are_rows)
+  results = (GetParamMat(p, "h", points_are_rows, juliaOwnedMemory),
+             GetParamMat(p, "w", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

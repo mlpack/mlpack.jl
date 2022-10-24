@@ -1,14 +1,14 @@
 export nca
 
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const ncaLibrary = mlpack_jll.libmlpack_julia_nca
 
 # Call the C binding of the mlpack nca binding.
-function nca_mlpackMain()
-  success = ccall((:nca, ncaLibrary), Bool, ())
+function call_nca(p, t)
+  success = ccall((:mlpack_nca, ncaLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -152,64 +152,75 @@ function nca(input;
   # Force the symbols to load.
   ccall((:loadSymbols, ncaLibrary), Nothing, ());
 
-  IORestoreSettings("Neighborhood Components Analysis (NCA)")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("nca")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  IOSetParamMat("input", input, points_are_rows)
+  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
   if !ismissing(armijo_constant)
-    IOSetParam("armijo_constant", convert(Float64, armijo_constant))
+    SetParam(p, "armijo_constant", convert(Float64, armijo_constant))
   end
   if !ismissing(batch_size)
-    IOSetParam("batch_size", convert(Int, batch_size))
+    SetParam(p, "batch_size", convert(Int, batch_size))
   end
   if !ismissing(labels)
-    IOSetParamURow("labels", labels)
+    SetParamURow(p, "labels", labels, juliaOwnedMemory)
   end
   if !ismissing(linear_scan)
-    IOSetParam("linear_scan", convert(Bool, linear_scan))
+    SetParam(p, "linear_scan", convert(Bool, linear_scan))
   end
   if !ismissing(max_iterations)
-    IOSetParam("max_iterations", convert(Int, max_iterations))
+    SetParam(p, "max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(max_line_search_trials)
-    IOSetParam("max_line_search_trials", convert(Int, max_line_search_trials))
+    SetParam(p, "max_line_search_trials", convert(Int, max_line_search_trials))
   end
   if !ismissing(max_step)
-    IOSetParam("max_step", convert(Float64, max_step))
+    SetParam(p, "max_step", convert(Float64, max_step))
   end
   if !ismissing(min_step)
-    IOSetParam("min_step", convert(Float64, min_step))
+    SetParam(p, "min_step", convert(Float64, min_step))
   end
   if !ismissing(normalize)
-    IOSetParam("normalize", convert(Bool, normalize))
+    SetParam(p, "normalize", convert(Bool, normalize))
   end
   if !ismissing(num_basis)
-    IOSetParam("num_basis", convert(Int, num_basis))
+    SetParam(p, "num_basis", convert(Int, num_basis))
   end
   if !ismissing(optimizer)
-    IOSetParam("optimizer", convert(String, optimizer))
+    SetParam(p, "optimizer", convert(String, optimizer))
   end
   if !ismissing(seed)
-    IOSetParam("seed", convert(Int, seed))
+    SetParam(p, "seed", convert(Int, seed))
   end
   if !ismissing(step_size)
-    IOSetParam("step_size", convert(Float64, step_size))
+    SetParam(p, "step_size", convert(Float64, step_size))
   end
   if !ismissing(tolerance)
-    IOSetParam("tolerance", convert(Float64, tolerance))
+    SetParam(p, "tolerance", convert(Float64, tolerance))
   end
   if !ismissing(wolfe)
-    IOSetParam("wolfe", convert(Float64, wolfe))
+    SetParam(p, "wolfe", convert(Float64, wolfe))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output")
+  SetPassed(p, "output")
   # Call the program.
-  nca_mlpackMain()
+  call_nca(p, t)
 
-  return IOGetParamMat("output", points_are_rows)
+  results = (GetParamMat(p, "output", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

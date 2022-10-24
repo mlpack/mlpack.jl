@@ -2,14 +2,14 @@ export sparse_coding
 
 import ..SparseCoding
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const sparse_codingLibrary = mlpack_jll.libmlpack_julia_sparse_coding
 
 # Call the C binding of the mlpack sparse_coding binding.
-function sparse_coding_mlpackMain()
-  success = ccall((:sparse_coding, sparse_codingLibrary), Bool, ())
+function call_sparse_coding(p, t)
+  success = ccall((:mlpack_sparse_coding, sparse_codingLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module sparse_coding_internal
 import ...SparseCoding
 
 # Get the value of a model pointer parameter of type SparseCoding.
-function IOGetParamSparseCoding(paramName::String)::SparseCoding
-  SparseCoding(ccall((:IO_GetParamSparseCodingPtr, sparse_codingLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamSparseCoding(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::SparseCoding
+  ptr = ccall((:GetParamSparseCodingPtr, sparse_codingLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return SparseCoding(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type SparseCoding.
-function IOSetParamSparseCoding(paramName::String, model::SparseCoding)
-  ccall((:IO_SetParamSparseCodingPtr, sparse_codingLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamSparseCoding(params::Ptr{Nothing}, paramName::String, model::SparseCoding)
+  ccall((:SetParamSparseCodingPtr, sparse_codingLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteSparseCoding(ptr::Ptr{Nothing})
+  ccall((:DeleteSparseCodingPtr, sparse_codingLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeSparseCoding(stream::IO, model::SparseCoding)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeSparseCodingPtr, sparse_codingLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeSparseCodingPtr, sparse_codingLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeSparseCoding(stream::IO)::SparseCoding
-  buffer = read(stream)
-  SparseCoding(ccall((:DeserializeSparseCodingPtr, sparse_codingLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer SparseCoding(ccall((:DeserializeSparseCodingPtr, sparse_codingLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -159,58 +167,70 @@ function sparse_coding(;
   # Force the symbols to load.
   ccall((:loadSymbols, sparse_codingLibrary), Nothing, ());
 
-  IORestoreSettings("Sparse Coding")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("sparse_coding")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(atoms)
-    IOSetParam("atoms", convert(Int, atoms))
+    SetParam(p, "atoms", convert(Int, atoms))
   end
   if !ismissing(initial_dictionary)
-    IOSetParamMat("initial_dictionary", initial_dictionary, points_are_rows)
+    SetParamMat(p, "initial_dictionary", initial_dictionary, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(input_model)
-    sparse_coding_internal.IOSetParamSparseCoding("input_model", convert(SparseCoding, input_model))
+    push!(modelPtrs, convert(SparseCoding, input_model).ptr)
+    sparse_coding_internal.SetParamSparseCoding(p, "input_model", convert(SparseCoding, input_model))
   end
   if !ismissing(lambda1)
-    IOSetParam("lambda1", convert(Float64, lambda1))
+    SetParam(p, "lambda1", convert(Float64, lambda1))
   end
   if !ismissing(lambda2)
-    IOSetParam("lambda2", convert(Float64, lambda2))
+    SetParam(p, "lambda2", convert(Float64, lambda2))
   end
   if !ismissing(max_iterations)
-    IOSetParam("max_iterations", convert(Int, max_iterations))
+    SetParam(p, "max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(newton_tolerance)
-    IOSetParam("newton_tolerance", convert(Float64, newton_tolerance))
+    SetParam(p, "newton_tolerance", convert(Float64, newton_tolerance))
   end
   if !ismissing(normalize)
-    IOSetParam("normalize", convert(Bool, normalize))
+    SetParam(p, "normalize", convert(Bool, normalize))
   end
   if !ismissing(objective_tolerance)
-    IOSetParam("objective_tolerance", convert(Float64, objective_tolerance))
+    SetParam(p, "objective_tolerance", convert(Float64, objective_tolerance))
   end
   if !ismissing(seed)
-    IOSetParam("seed", convert(Int, seed))
+    SetParam(p, "seed", convert(Int, seed))
   end
   if !ismissing(test)
-    IOSetParamMat("test", test, points_are_rows)
+    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(training)
-    IOSetParamMat("training", training, points_are_rows)
+    SetParamMat(p, "training", training, points_are_rows, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("codes")
-  IOSetPassed("dictionary")
-  IOSetPassed("output_model")
+  SetPassed(p, "codes")
+  SetPassed(p, "dictionary")
+  SetPassed(p, "output_model")
   # Call the program.
-  sparse_coding_mlpackMain()
+  call_sparse_coding(p, t)
 
-  return IOGetParamMat("codes", points_are_rows),
-         IOGetParamMat("dictionary", points_are_rows),
-         sparse_coding_internal.IOGetParamSparseCoding("output_model")
+  results = (GetParamMat(p, "codes", points_are_rows, juliaOwnedMemory),
+             GetParamMat(p, "dictionary", points_are_rows, juliaOwnedMemory),
+             sparse_coding_internal.GetParamSparseCoding(p, "output_model", modelPtrs))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

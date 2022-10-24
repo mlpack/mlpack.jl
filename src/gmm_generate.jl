@@ -2,14 +2,14 @@ export gmm_generate
 
 import ..GMM
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const gmm_generateLibrary = mlpack_jll.libmlpack_julia_gmm_generate
 
 # Call the C binding of the mlpack gmm_generate binding.
-function gmm_generate_mlpackMain()
-  success = ccall((:gmm_generate, gmm_generateLibrary), Bool, ())
+function call_gmm_generate(p, t)
+  success = ccall((:mlpack_gmm_generate, gmm_generateLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module gmm_generate_internal
 import ...GMM
 
 # Get the value of a model pointer parameter of type GMM.
-function IOGetParamGMM(paramName::String)::GMM
-  GMM(ccall((:IO_GetParamGMMPtr, gmm_generateLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamGMM(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::GMM
+  ptr = ccall((:GetParamGMMPtr, gmm_generateLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return GMM(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type GMM.
-function IOSetParamGMM(paramName::String, model::GMM)
-  ccall((:IO_SetParamGMMPtr, gmm_generateLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamGMM(params::Ptr{Nothing}, paramName::String, model::GMM)
+  ccall((:SetParamGMMPtr, gmm_generateLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteGMM(ptr::Ptr{Nothing})
+  ccall((:DeleteGMMPtr, gmm_generateLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeGMM(stream::IO, model::GMM)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeGMMPtr, gmm_generateLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeGMMPtr, gmm_generateLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeGMM(stream::IO)::GMM
-  buffer = read(stream)
-  GMM(ccall((:DeserializeGMMPtr, gmm_generateLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer GMM(ccall((:DeserializeGMMPtr, gmm_generateLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -85,23 +93,35 @@ function gmm_generate(input_model::GMM,
   # Force the symbols to load.
   ccall((:loadSymbols, gmm_generateLibrary), Nothing, ());
 
-  IORestoreSettings("GMM Sample Generator")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("gmm_generate")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  gmm_generate_internal.IOSetParamGMM("input_model", convert(GMM, input_model))
-  IOSetParam("samples", samples)
+  push!(modelPtrs, convert(GMM, input_model).ptr)
+  gmm_generate_internal.SetParamGMM(p, "input_model", convert(GMM, input_model))
+  SetParam(p, "samples", samples)
   if !ismissing(seed)
-    IOSetParam("seed", convert(Int, seed))
+    SetParam(p, "seed", convert(Int, seed))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output")
+  SetPassed(p, "output")
   # Call the program.
-  gmm_generate_mlpackMain()
+  call_gmm_generate(p, t)
 
-  return IOGetParamMat("output", points_are_rows)
+  results = (GetParamMat(p, "output", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

@@ -1,14 +1,14 @@
 export preprocess_binarize
 
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const preprocess_binarizeLibrary = mlpack_jll.libmlpack_julia_preprocess_binarize
 
 # Call the C binding of the mlpack preprocess_binarize binding.
-function preprocess_binarize_mlpackMain()
-  success = ccall((:preprocess_binarize, preprocess_binarizeLibrary), Bool, ())
+function call_preprocess_binarize(p, t)
+  success = ccall((:mlpack_preprocess_binarize, preprocess_binarizeLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -78,25 +78,36 @@ function preprocess_binarize(input;
   # Force the symbols to load.
   ccall((:loadSymbols, preprocess_binarizeLibrary), Nothing, ());
 
-  IORestoreSettings("Binarize Data")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("preprocess_binarize")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  IOSetParamMat("input", input, points_are_rows)
+  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
   if !ismissing(dimension)
-    IOSetParam("dimension", convert(Int, dimension))
+    SetParam(p, "dimension", convert(Int, dimension))
   end
   if !ismissing(threshold)
-    IOSetParam("threshold", convert(Float64, threshold))
+    SetParam(p, "threshold", convert(Float64, threshold))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output")
+  SetPassed(p, "output")
   # Call the program.
-  preprocess_binarize_mlpackMain()
+  call_preprocess_binarize(p, t)
 
-  return IOGetParamMat("output", points_are_rows)
+  results = (GetParamMat(p, "output", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

@@ -2,14 +2,14 @@ export local_coordinate_coding
 
 import ..LocalCoordinateCoding
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const local_coordinate_codingLibrary = mlpack_jll.libmlpack_julia_local_coordinate_coding
 
 # Call the C binding of the mlpack local_coordinate_coding binding.
-function local_coordinate_coding_mlpackMain()
-  success = ccall((:local_coordinate_coding, local_coordinate_codingLibrary), Bool, ())
+function call_local_coordinate_coding(p, t)
+  success = ccall((:mlpack_local_coordinate_coding, local_coordinate_codingLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module local_coordinate_coding_internal
 import ...LocalCoordinateCoding
 
 # Get the value of a model pointer parameter of type LocalCoordinateCoding.
-function IOGetParamLocalCoordinateCoding(paramName::String)::LocalCoordinateCoding
-  LocalCoordinateCoding(ccall((:IO_GetParamLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamLocalCoordinateCoding(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::LocalCoordinateCoding
+  ptr = ccall((:GetParamLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return LocalCoordinateCoding(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type LocalCoordinateCoding.
-function IOSetParamLocalCoordinateCoding(paramName::String, model::LocalCoordinateCoding)
-  ccall((:IO_SetParamLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamLocalCoordinateCoding(params::Ptr{Nothing}, paramName::String, model::LocalCoordinateCoding)
+  ccall((:SetParamLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteLocalCoordinateCoding(ptr::Ptr{Nothing})
+  ccall((:DeleteLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeLocalCoordinateCoding(stream::IO, model::LocalCoordinateCoding)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeLocalCoordinateCoding(stream::IO)::LocalCoordinateCoding
-  buffer = read(stream)
-  LocalCoordinateCoding(ccall((:DeserializeLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer LocalCoordinateCoding(ccall((:DeserializeLocalCoordinateCodingPtr, local_coordinate_codingLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -147,52 +155,64 @@ function local_coordinate_coding(;
   # Force the symbols to load.
   ccall((:loadSymbols, local_coordinate_codingLibrary), Nothing, ());
 
-  IORestoreSettings("Local Coordinate Coding")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("local_coordinate_coding")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(atoms)
-    IOSetParam("atoms", convert(Int, atoms))
+    SetParam(p, "atoms", convert(Int, atoms))
   end
   if !ismissing(initial_dictionary)
-    IOSetParamMat("initial_dictionary", initial_dictionary, points_are_rows)
+    SetParamMat(p, "initial_dictionary", initial_dictionary, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(input_model)
-    local_coordinate_coding_internal.IOSetParamLocalCoordinateCoding("input_model", convert(LocalCoordinateCoding, input_model))
+    push!(modelPtrs, convert(LocalCoordinateCoding, input_model).ptr)
+    local_coordinate_coding_internal.SetParamLocalCoordinateCoding(p, "input_model", convert(LocalCoordinateCoding, input_model))
   end
   if !ismissing(lambda)
-    IOSetParam("lambda", convert(Float64, lambda))
+    SetParam(p, "lambda", convert(Float64, lambda))
   end
   if !ismissing(max_iterations)
-    IOSetParam("max_iterations", convert(Int, max_iterations))
+    SetParam(p, "max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(normalize)
-    IOSetParam("normalize", convert(Bool, normalize))
+    SetParam(p, "normalize", convert(Bool, normalize))
   end
   if !ismissing(seed)
-    IOSetParam("seed", convert(Int, seed))
+    SetParam(p, "seed", convert(Int, seed))
   end
   if !ismissing(test)
-    IOSetParamMat("test", test, points_are_rows)
+    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(tolerance)
-    IOSetParam("tolerance", convert(Float64, tolerance))
+    SetParam(p, "tolerance", convert(Float64, tolerance))
   end
   if !ismissing(training)
-    IOSetParamMat("training", training, points_are_rows)
+    SetParamMat(p, "training", training, points_are_rows, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("codes")
-  IOSetPassed("dictionary")
-  IOSetPassed("output_model")
+  SetPassed(p, "codes")
+  SetPassed(p, "dictionary")
+  SetPassed(p, "output_model")
   # Call the program.
-  local_coordinate_coding_mlpackMain()
+  call_local_coordinate_coding(p, t)
 
-  return IOGetParamMat("codes", points_are_rows),
-         IOGetParamMat("dictionary", points_are_rows),
-         local_coordinate_coding_internal.IOGetParamLocalCoordinateCoding("output_model")
+  results = (GetParamMat(p, "codes", points_are_rows, juliaOwnedMemory),
+             GetParamMat(p, "dictionary", points_are_rows, juliaOwnedMemory),
+             local_coordinate_coding_internal.GetParamLocalCoordinateCoding(p, "output_model", modelPtrs))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

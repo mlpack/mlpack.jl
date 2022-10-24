@@ -2,14 +2,14 @@ export bayesian_linear_regression
 
 import ..BayesianLinearRegression
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const bayesian_linear_regressionLibrary = mlpack_jll.libmlpack_julia_bayesian_linear_regression
 
 # Call the C binding of the mlpack bayesian_linear_regression binding.
-function bayesian_linear_regression_mlpackMain()
-  success = ccall((:bayesian_linear_regression, bayesian_linear_regressionLibrary), Bool, ())
+function call_bayesian_linear_regression(p, t)
+  success = ccall((:mlpack_bayesian_linear_regression, bayesian_linear_regressionLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module bayesian_linear_regression_internal
 import ...BayesianLinearRegression
 
 # Get the value of a model pointer parameter of type BayesianLinearRegression.
-function IOGetParamBayesianLinearRegression(paramName::String)::BayesianLinearRegression
-  BayesianLinearRegression(ccall((:IO_GetParamBayesianLinearRegressionPtr, bayesian_linear_regressionLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamBayesianLinearRegression(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::BayesianLinearRegression
+  ptr = ccall((:GetParamBayesianLinearRegressionPtr, bayesian_linear_regressionLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return BayesianLinearRegression(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type BayesianLinearRegression.
-function IOSetParamBayesianLinearRegression(paramName::String, model::BayesianLinearRegression)
-  ccall((:IO_SetParamBayesianLinearRegressionPtr, bayesian_linear_regressionLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamBayesianLinearRegression(params::Ptr{Nothing}, paramName::String, model::BayesianLinearRegression)
+  ccall((:SetParamBayesianLinearRegressionPtr, bayesian_linear_regressionLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteBayesianLinearRegression(ptr::Ptr{Nothing})
+  ccall((:DeleteBayesianLinearRegressionPtr, bayesian_linear_regressionLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeBayesianLinearRegression(stream::IO, model::BayesianLinearRegression)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeBayesianLinearRegressionPtr, bayesian_linear_regressionLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeBayesianLinearRegressionPtr, bayesian_linear_regressionLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeBayesianLinearRegression(stream::IO)::BayesianLinearRegression
-  buffer = read(stream)
-  BayesianLinearRegression(ccall((:DeserializeBayesianLinearRegressionPtr, bayesian_linear_regressionLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer BayesianLinearRegression(ccall((:DeserializeBayesianLinearRegressionPtr, bayesian_linear_regressionLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -149,40 +157,52 @@ function bayesian_linear_regression(;
   # Force the symbols to load.
   ccall((:loadSymbols, bayesian_linear_regressionLibrary), Nothing, ());
 
-  IORestoreSettings("BayesianLinearRegression")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("bayesian_linear_regression")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(center)
-    IOSetParam("center", convert(Bool, center))
+    SetParam(p, "center", convert(Bool, center))
   end
   if !ismissing(input)
-    IOSetParamMat("input", input, points_are_rows)
+    SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(input_model)
-    bayesian_linear_regression_internal.IOSetParamBayesianLinearRegression("input_model", convert(BayesianLinearRegression, input_model))
+    push!(modelPtrs, convert(BayesianLinearRegression, input_model).ptr)
+    bayesian_linear_regression_internal.SetParamBayesianLinearRegression(p, "input_model", convert(BayesianLinearRegression, input_model))
   end
   if !ismissing(responses)
-    IOSetParamRow("responses", responses)
+    SetParamRow(p, "responses", responses, juliaOwnedMemory)
   end
   if !ismissing(scale)
-    IOSetParam("scale", convert(Bool, scale))
+    SetParam(p, "scale", convert(Bool, scale))
   end
   if !ismissing(test)
-    IOSetParamMat("test", test, points_are_rows)
+    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output_model")
-  IOSetPassed("predictions")
-  IOSetPassed("stds")
+  SetPassed(p, "output_model")
+  SetPassed(p, "predictions")
+  SetPassed(p, "stds")
   # Call the program.
-  bayesian_linear_regression_mlpackMain()
+  call_bayesian_linear_regression(p, t)
 
-  return bayesian_linear_regression_internal.IOGetParamBayesianLinearRegression("output_model"),
-         IOGetParamMat("predictions", points_are_rows),
-         IOGetParamMat("stds", points_are_rows)
+  results = (bayesian_linear_regression_internal.GetParamBayesianLinearRegression(p, "output_model", modelPtrs),
+             GetParamMat(p, "predictions", points_are_rows, juliaOwnedMemory),
+             GetParamMat(p, "stds", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

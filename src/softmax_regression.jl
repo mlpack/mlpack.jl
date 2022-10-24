@@ -2,14 +2,14 @@ export softmax_regression
 
 import ..SoftmaxRegression
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const softmax_regressionLibrary = mlpack_jll.libmlpack_julia_softmax_regression
 
 # Call the C binding of the mlpack softmax_regression binding.
-function softmax_regression_mlpackMain()
-  success = ccall((:softmax_regression, softmax_regressionLibrary), Bool, ())
+function call_softmax_regression(p, t)
+  success = ccall((:mlpack_softmax_regression, softmax_regressionLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module softmax_regression_internal
 import ...SoftmaxRegression
 
 # Get the value of a model pointer parameter of type SoftmaxRegression.
-function IOGetParamSoftmaxRegression(paramName::String)::SoftmaxRegression
-  SoftmaxRegression(ccall((:IO_GetParamSoftmaxRegressionPtr, softmax_regressionLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamSoftmaxRegression(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::SoftmaxRegression
+  ptr = ccall((:GetParamSoftmaxRegressionPtr, softmax_regressionLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return SoftmaxRegression(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type SoftmaxRegression.
-function IOSetParamSoftmaxRegression(paramName::String, model::SoftmaxRegression)
-  ccall((:IO_SetParamSoftmaxRegressionPtr, softmax_regressionLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamSoftmaxRegression(params::Ptr{Nothing}, paramName::String, model::SoftmaxRegression)
+  ccall((:SetParamSoftmaxRegressionPtr, softmax_regressionLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteSoftmaxRegression(ptr::Ptr{Nothing})
+  ccall((:DeleteSoftmaxRegressionPtr, softmax_regressionLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeSoftmaxRegression(stream::IO, model::SoftmaxRegression)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeSoftmaxRegressionPtr, softmax_regressionLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeSoftmaxRegressionPtr, softmax_regressionLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeSoftmaxRegression(stream::IO)::SoftmaxRegression
-  buffer = read(stream)
-  SoftmaxRegression(ccall((:DeserializeSoftmaxRegressionPtr, softmax_regressionLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer SoftmaxRegression(ccall((:DeserializeSoftmaxRegressionPtr, softmax_regressionLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -82,7 +90,7 @@ trained model to `sr_model`, the following command can be used:
 julia> using CSV
 julia> dataset = CSV.read("dataset.csv")
 julia> labels = CSV.read("labels.csv"; type=Int)
-julia> sr_model, _ = softmax_regression(labels=labels,
+julia> sr_model, _, _ = softmax_regression(labels=labels,
             training=dataset)
 ```
 
@@ -92,7 +100,7 @@ output predictions to `predictions`, the following command can be used:
 ```julia
 julia> using CSV
 julia> test_points = CSV.read("test_points.csv")
-julia> _, predictions = softmax_regression(input_model=sr_model,
+julia> _, predictions, _ = softmax_regression(input_model=sr_model,
             test=test_points)
 ```
 
@@ -128,6 +136,8 @@ julia> _, predictions = softmax_regression(input_model=sr_model,
       regression model to.
  - `predictions::Array{Int, 1}`: Matrix to save predictions for test
       dataset into.
+ - `probabilities::Array{Float64, 2}`: Matrix to save class probabilities
+      for test dataset into.
 
 """
 function softmax_regression(;
@@ -145,47 +155,61 @@ function softmax_regression(;
   # Force the symbols to load.
   ccall((:loadSymbols, softmax_regressionLibrary), Nothing, ());
 
-  IORestoreSettings("Softmax Regression")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("softmax_regression")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(input_model)
-    softmax_regression_internal.IOSetParamSoftmaxRegression("input_model", convert(SoftmaxRegression, input_model))
+    push!(modelPtrs, convert(SoftmaxRegression, input_model).ptr)
+    softmax_regression_internal.SetParamSoftmaxRegression(p, "input_model", convert(SoftmaxRegression, input_model))
   end
   if !ismissing(labels)
-    IOSetParamURow("labels", labels)
+    SetParamURow(p, "labels", labels, juliaOwnedMemory)
   end
   if !ismissing(lambda)
-    IOSetParam("lambda", convert(Float64, lambda))
+    SetParam(p, "lambda", convert(Float64, lambda))
   end
   if !ismissing(max_iterations)
-    IOSetParam("max_iterations", convert(Int, max_iterations))
+    SetParam(p, "max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(no_intercept)
-    IOSetParam("no_intercept", convert(Bool, no_intercept))
+    SetParam(p, "no_intercept", convert(Bool, no_intercept))
   end
   if !ismissing(number_of_classes)
-    IOSetParam("number_of_classes", convert(Int, number_of_classes))
+    SetParam(p, "number_of_classes", convert(Int, number_of_classes))
   end
   if !ismissing(test)
-    IOSetParamMat("test", test, points_are_rows)
+    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(test_labels)
-    IOSetParamURow("test_labels", test_labels)
+    SetParamURow(p, "test_labels", test_labels, juliaOwnedMemory)
   end
   if !ismissing(training)
-    IOSetParamMat("training", training, points_are_rows)
+    SetParamMat(p, "training", training, points_are_rows, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output_model")
-  IOSetPassed("predictions")
+  SetPassed(p, "output_model")
+  SetPassed(p, "predictions")
+  SetPassed(p, "probabilities")
   # Call the program.
-  softmax_regression_mlpackMain()
+  call_softmax_regression(p, t)
 
-  return softmax_regression_internal.IOGetParamSoftmaxRegression("output_model"),
-         IOGetParamURow("predictions")
+  results = (softmax_regression_internal.GetParamSoftmaxRegression(p, "output_model", modelPtrs),
+             GetParamURow(p, "predictions", juliaOwnedMemory),
+             GetParamMat(p, "probabilities", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

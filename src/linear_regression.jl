@@ -2,14 +2,14 @@ export linear_regression
 
 import ..LinearRegression
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const linear_regressionLibrary = mlpack_jll.libmlpack_julia_linear_regression
 
 # Call the C binding of the mlpack linear_regression binding.
-function linear_regression_mlpackMain()
-  success = ccall((:linear_regression, linear_regressionLibrary), Bool, ())
+function call_linear_regression(p, t)
+  success = ccall((:mlpack_linear_regression, linear_regressionLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module linear_regression_internal
 import ...LinearRegression
 
 # Get the value of a model pointer parameter of type LinearRegression.
-function IOGetParamLinearRegression(paramName::String)::LinearRegression
-  LinearRegression(ccall((:IO_GetParamLinearRegressionPtr, linear_regressionLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamLinearRegression(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::LinearRegression
+  ptr = ccall((:GetParamLinearRegressionPtr, linear_regressionLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return LinearRegression(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type LinearRegression.
-function IOSetParamLinearRegression(paramName::String, model::LinearRegression)
-  ccall((:IO_SetParamLinearRegressionPtr, linear_regressionLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamLinearRegression(params::Ptr{Nothing}, paramName::String, model::LinearRegression)
+  ccall((:SetParamLinearRegressionPtr, linear_regressionLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteLinearRegression(ptr::Ptr{Nothing})
+  ccall((:DeleteLinearRegressionPtr, linear_regressionLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeLinearRegression(stream::IO, model::LinearRegression)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeLinearRegressionPtr, linear_regressionLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeLinearRegressionPtr, linear_regressionLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeLinearRegression(stream::IO)::LinearRegression
-  buffer = read(stream)
-  LinearRegression(ccall((:DeserializeLinearRegressionPtr, linear_regressionLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer LinearRegression(ccall((:DeserializeLinearRegressionPtr, linear_regressionLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -127,35 +135,47 @@ function linear_regression(;
   # Force the symbols to load.
   ccall((:loadSymbols, linear_regressionLibrary), Nothing, ());
 
-  IORestoreSettings("Simple Linear Regression and Prediction")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("linear_regression")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(input_model)
-    linear_regression_internal.IOSetParamLinearRegression("input_model", convert(LinearRegression, input_model))
+    push!(modelPtrs, convert(LinearRegression, input_model).ptr)
+    linear_regression_internal.SetParamLinearRegression(p, "input_model", convert(LinearRegression, input_model))
   end
   if !ismissing(lambda)
-    IOSetParam("lambda", convert(Float64, lambda))
+    SetParam(p, "lambda", convert(Float64, lambda))
   end
   if !ismissing(test)
-    IOSetParamMat("test", test, points_are_rows)
+    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(training)
-    IOSetParamMat("training", training, points_are_rows)
+    SetParamMat(p, "training", training, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(training_responses)
-    IOSetParamRow("training_responses", training_responses)
+    SetParamRow(p, "training_responses", training_responses, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output_model")
-  IOSetPassed("output_predictions")
+  SetPassed(p, "output_model")
+  SetPassed(p, "output_predictions")
   # Call the program.
-  linear_regression_mlpackMain()
+  call_linear_regression(p, t)
 
-  return linear_regression_internal.IOGetParamLinearRegression("output_model"),
-         IOGetParamRow("output_predictions")
+  results = (linear_regression_internal.GetParamLinearRegression(p, "output_model", modelPtrs),
+             GetParamRow(p, "output_predictions", juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

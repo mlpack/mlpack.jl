@@ -1,14 +1,14 @@
 export dbscan
 
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const dbscanLibrary = mlpack_jll.libmlpack_julia_dbscan
 
 # Call the C binding of the mlpack dbscan binding.
-function dbscan_mlpackMain()
-  success = ccall((:dbscan, dbscanLibrary), Bool, ())
+function call_dbscan(p, t)
+  success = ccall((:mlpack_dbscan, dbscanLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -97,39 +97,50 @@ function dbscan(input;
   # Force the symbols to load.
   ccall((:loadSymbols, dbscanLibrary), Nothing, ());
 
-  IORestoreSettings("DBSCAN clustering")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("dbscan")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  IOSetParamMat("input", input, points_are_rows)
+  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
   if !ismissing(epsilon)
-    IOSetParam("epsilon", convert(Float64, epsilon))
+    SetParam(p, "epsilon", convert(Float64, epsilon))
   end
   if !ismissing(min_size)
-    IOSetParam("min_size", convert(Int, min_size))
+    SetParam(p, "min_size", convert(Int, min_size))
   end
   if !ismissing(naive)
-    IOSetParam("naive", convert(Bool, naive))
+    SetParam(p, "naive", convert(Bool, naive))
   end
   if !ismissing(selection_type)
-    IOSetParam("selection_type", convert(String, selection_type))
+    SetParam(p, "selection_type", convert(String, selection_type))
   end
   if !ismissing(single_mode)
-    IOSetParam("single_mode", convert(Bool, single_mode))
+    SetParam(p, "single_mode", convert(Bool, single_mode))
   end
   if !ismissing(tree_type)
-    IOSetParam("tree_type", convert(String, tree_type))
+    SetParam(p, "tree_type", convert(String, tree_type))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("assignments")
-  IOSetPassed("centroids")
+  SetPassed(p, "assignments")
+  SetPassed(p, "centroids")
   # Call the program.
-  dbscan_mlpackMain()
+  call_dbscan(p, t)
 
-  return IOGetParamURow("assignments"),
-         IOGetParamMat("centroids", points_are_rows)
+  results = (GetParamURow(p, "assignments", juliaOwnedMemory),
+             GetParamMat(p, "centroids", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

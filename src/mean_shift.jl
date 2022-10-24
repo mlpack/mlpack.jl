@@ -1,14 +1,14 @@
 export mean_shift
 
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const mean_shiftLibrary = mlpack_jll.libmlpack_julia_mean_shift
 
 # Call the C binding of the mlpack mean_shift binding.
-function mean_shift_mlpackMain()
-  success = ccall((:mean_shift, mean_shiftLibrary), Bool, ())
+function call_mean_shift(p, t)
+  success = ccall((:mlpack_mean_shift, mean_shiftLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -90,36 +90,47 @@ function mean_shift(input;
   # Force the symbols to load.
   ccall((:loadSymbols, mean_shiftLibrary), Nothing, ());
 
-  IORestoreSettings("Mean Shift Clustering")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("mean_shift")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  IOSetParamMat("input", input, points_are_rows)
+  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
   if !ismissing(force_convergence)
-    IOSetParam("force_convergence", convert(Bool, force_convergence))
+    SetParam(p, "force_convergence", convert(Bool, force_convergence))
   end
   if !ismissing(in_place)
-    IOSetParam("in_place", convert(Bool, in_place))
+    SetParam(p, "in_place", convert(Bool, in_place))
   end
   if !ismissing(labels_only)
-    IOSetParam("labels_only", convert(Bool, labels_only))
+    SetParam(p, "labels_only", convert(Bool, labels_only))
   end
   if !ismissing(max_iterations)
-    IOSetParam("max_iterations", convert(Int, max_iterations))
+    SetParam(p, "max_iterations", convert(Int, max_iterations))
   end
   if !ismissing(radius)
-    IOSetParam("radius", convert(Float64, radius))
+    SetParam(p, "radius", convert(Float64, radius))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("centroid")
-  IOSetPassed("output")
+  SetPassed(p, "centroid")
+  SetPassed(p, "output")
   # Call the program.
-  mean_shift_mlpackMain()
+  call_mean_shift(p, t)
 
-  return IOGetParamMat("centroid", points_are_rows),
-         IOGetParamMat("output", points_are_rows)
+  results = (GetParamMat(p, "centroid", points_are_rows, juliaOwnedMemory),
+             GetParamMat(p, "output", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

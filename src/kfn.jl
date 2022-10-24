@@ -2,14 +2,14 @@ export kfn
 
 import ..KFNModel
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const kfnLibrary = mlpack_jll.libmlpack_julia_kfn
 
 # Call the C binding of the mlpack kfn binding.
-function kfn_mlpackMain()
-  success = ccall((:kfn, kfnLibrary), Bool, ())
+function call_kfn(p, t)
+  success = ccall((:mlpack_kfn, kfnLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module kfn_internal
 import ...KFNModel
 
 # Get the value of a model pointer parameter of type KFNModel.
-function IOGetParamKFNModel(paramName::String)::KFNModel
-  KFNModel(ccall((:IO_GetParamKFNModelPtr, kfnLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamKFNModel(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::KFNModel
+  ptr = ccall((:GetParamKFNModelPtr, kfnLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return KFNModel(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type KFNModel.
-function IOSetParamKFNModel(paramName::String, model::KFNModel)
-  ccall((:IO_SetParamKFNModelPtr, kfnLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamKFNModel(params::Ptr{Nothing}, paramName::String, model::KFNModel)
+  ccall((:SetParamKFNModelPtr, kfnLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteKFNModel(ptr::Ptr{Nothing})
+  ccall((:DeleteKFNModelPtr, kfnLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeKFNModel(stream::IO, model::KFNModel)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeKFNModelPtr, kfnLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeKFNModelPtr, kfnLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeKFNModel(stream::IO)::KFNModel
-  buffer = read(stream)
-  KFNModel(ccall((:DeserializeKFNModelPtr, kfnLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer KFNModel(ccall((:DeserializeKFNModelPtr, kfnLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -139,61 +147,73 @@ function kfn(;
   # Force the symbols to load.
   ccall((:loadSymbols, kfnLibrary), Nothing, ());
 
-  IORestoreSettings("k-Furthest-Neighbors Search")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("kfn")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(algorithm)
-    IOSetParam("algorithm", convert(String, algorithm))
+    SetParam(p, "algorithm", convert(String, algorithm))
   end
   if !ismissing(epsilon)
-    IOSetParam("epsilon", convert(Float64, epsilon))
+    SetParam(p, "epsilon", convert(Float64, epsilon))
   end
   if !ismissing(input_model)
-    kfn_internal.IOSetParamKFNModel("input_model", convert(KFNModel, input_model))
+    push!(modelPtrs, convert(KFNModel, input_model).ptr)
+    kfn_internal.SetParamKFNModel(p, "input_model", convert(KFNModel, input_model))
   end
   if !ismissing(k)
-    IOSetParam("k", convert(Int, k))
+    SetParam(p, "k", convert(Int, k))
   end
   if !ismissing(leaf_size)
-    IOSetParam("leaf_size", convert(Int, leaf_size))
+    SetParam(p, "leaf_size", convert(Int, leaf_size))
   end
   if !ismissing(percentage)
-    IOSetParam("percentage", convert(Float64, percentage))
+    SetParam(p, "percentage", convert(Float64, percentage))
   end
   if !ismissing(query)
-    IOSetParamMat("query", query, points_are_rows)
+    SetParamMat(p, "query", query, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(random_basis)
-    IOSetParam("random_basis", convert(Bool, random_basis))
+    SetParam(p, "random_basis", convert(Bool, random_basis))
   end
   if !ismissing(reference)
-    IOSetParamMat("reference", reference, points_are_rows)
+    SetParamMat(p, "reference", reference, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(seed)
-    IOSetParam("seed", convert(Int, seed))
+    SetParam(p, "seed", convert(Int, seed))
   end
   if !ismissing(tree_type)
-    IOSetParam("tree_type", convert(String, tree_type))
+    SetParam(p, "tree_type", convert(String, tree_type))
   end
   if !ismissing(true_distances)
-    IOSetParamMat("true_distances", true_distances, points_are_rows)
+    SetParamMat(p, "true_distances", true_distances, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(true_neighbors)
-    IOSetParamUMat("true_neighbors", true_neighbors, points_are_rows)
+    SetParamUMat(p, "true_neighbors", true_neighbors, points_are_rows, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("distances")
-  IOSetPassed("neighbors")
-  IOSetPassed("output_model")
+  SetPassed(p, "distances")
+  SetPassed(p, "neighbors")
+  SetPassed(p, "output_model")
   # Call the program.
-  kfn_mlpackMain()
+  call_kfn(p, t)
 
-  return IOGetParamMat("distances", points_are_rows),
-         IOGetParamUMat("neighbors", points_are_rows),
-         kfn_internal.IOGetParamKFNModel("output_model")
+  results = (GetParamMat(p, "distances", points_are_rows, juliaOwnedMemory),
+             GetParamUMat(p, "neighbors", points_are_rows, juliaOwnedMemory),
+             kfn_internal.GetParamKFNModel(p, "output_model", modelPtrs))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

@@ -2,14 +2,14 @@ export nbc
 
 import ..NBCModel
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const nbcLibrary = mlpack_jll.libmlpack_julia_nbc
 
 # Call the C binding of the mlpack nbc binding.
-function nbc_mlpackMain()
-  success = ccall((:nbc, nbcLibrary), Bool, ())
+function call_nbc(p, t)
+  success = ccall((:mlpack_nbc, nbcLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module nbc_internal
 import ...NBCModel
 
 # Get the value of a model pointer parameter of type NBCModel.
-function IOGetParamNBCModel(paramName::String)::NBCModel
-  NBCModel(ccall((:IO_GetParamNBCModelPtr, nbcLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamNBCModel(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::NBCModel
+  ptr = ccall((:GetParamNBCModelPtr, nbcLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return NBCModel(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type NBCModel.
-function IOSetParamNBCModel(paramName::String, model::NBCModel)
-  ccall((:IO_SetParamNBCModelPtr, nbcLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamNBCModel(params::Ptr{Nothing}, paramName::String, model::NBCModel)
+  ccall((:SetParamNBCModelPtr, nbcLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteNBCModel(ptr::Ptr{Nothing})
+  ccall((:DeleteNBCModelPtr, nbcLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeNBCModel(stream::IO, model::NBCModel)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeNBCModelPtr, nbcLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeNBCModelPtr, nbcLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeNBCModel(stream::IO)::NBCModel
-  buffer = read(stream)
-  NBCModel(ccall((:DeserializeNBCModelPtr, nbcLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer NBCModel(ccall((:DeserializeNBCModelPtr, nbcLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -132,41 +140,53 @@ function nbc(;
   # Force the symbols to load.
   ccall((:loadSymbols, nbcLibrary), Nothing, ());
 
-  IORestoreSettings("Parametric Naive Bayes Classifier")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("nbc")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(incremental_variance)
-    IOSetParam("incremental_variance", convert(Bool, incremental_variance))
+    SetParam(p, "incremental_variance", convert(Bool, incremental_variance))
   end
   if !ismissing(input_model)
-    nbc_internal.IOSetParamNBCModel("input_model", convert(NBCModel, input_model))
+    push!(modelPtrs, convert(NBCModel, input_model).ptr)
+    nbc_internal.SetParamNBCModel(p, "input_model", convert(NBCModel, input_model))
   end
   if !ismissing(labels)
-    IOSetParamURow("labels", labels)
+    SetParamURow(p, "labels", labels, juliaOwnedMemory)
   end
   if !ismissing(test)
-    IOSetParamMat("test", test, points_are_rows)
+    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(training)
-    IOSetParamMat("training", training, points_are_rows)
+    SetParamMat(p, "training", training, points_are_rows, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output")
-  IOSetPassed("output_model")
-  IOSetPassed("output_probs")
-  IOSetPassed("predictions")
-  IOSetPassed("probabilities")
+  SetPassed(p, "output")
+  SetPassed(p, "output_model")
+  SetPassed(p, "output_probs")
+  SetPassed(p, "predictions")
+  SetPassed(p, "probabilities")
   # Call the program.
-  nbc_mlpackMain()
+  call_nbc(p, t)
 
-  return IOGetParamURow("output"),
-         nbc_internal.IOGetParamNBCModel("output_model"),
-         IOGetParamMat("output_probs", points_are_rows),
-         IOGetParamURow("predictions"),
-         IOGetParamMat("probabilities", points_are_rows)
+  results = (GetParamURow(p, "output", juliaOwnedMemory),
+             nbc_internal.GetParamNBCModel(p, "output_model", modelPtrs),
+             GetParamMat(p, "output_probs", points_are_rows, juliaOwnedMemory),
+             GetParamURow(p, "predictions", juliaOwnedMemory),
+             GetParamMat(p, "probabilities", points_are_rows, juliaOwnedMemory))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end

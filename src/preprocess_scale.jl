@@ -2,14 +2,14 @@ export preprocess_scale
 
 import ..ScalingModel
 
-using mlpack._Internal.io
+using mlpack._Internal.params
 
 import mlpack_jll
 const preprocess_scaleLibrary = mlpack_jll.libmlpack_julia_preprocess_scale
 
 # Call the C binding of the mlpack preprocess_scale binding.
-function preprocess_scale_mlpackMain()
-  success = ccall((:preprocess_scale, preprocess_scaleLibrary), Bool, ())
+function call_preprocess_scale(p, t)
+  success = ccall((:mlpack_preprocess_scale, preprocess_scaleLibrary), Bool, (Ptr{Nothing}, Ptr{Nothing}), p, t)
   if !success
     # Throw an exception---false means there was a C++ exception.
     throw(ErrorException("mlpack binding error; see output"))
@@ -23,26 +23,34 @@ module preprocess_scale_internal
 import ...ScalingModel
 
 # Get the value of a model pointer parameter of type ScalingModel.
-function IOGetParamScalingModel(paramName::String)::ScalingModel
-  ScalingModel(ccall((:IO_GetParamScalingModelPtr, preprocess_scaleLibrary), Ptr{Nothing}, (Cstring,), paramName))
+function GetParamScalingModel(params::Ptr{Nothing}, paramName::String, modelPtrs::Set{Ptr{Nothing}})::ScalingModel
+  ptr = ccall((:GetParamScalingModelPtr, preprocess_scaleLibrary), Ptr{Nothing}, (Ptr{Nothing}, Cstring,), params, paramName)
+  return ScalingModel(ptr; finalize=!(ptr in modelPtrs))
 end
 
 # Set the value of a model pointer parameter of type ScalingModel.
-function IOSetParamScalingModel(paramName::String, model::ScalingModel)
-  ccall((:IO_SetParamScalingModelPtr, preprocess_scaleLibrary), Nothing, (Cstring, Ptr{Nothing}), paramName, model.ptr)
+function SetParamScalingModel(params::Ptr{Nothing}, paramName::String, model::ScalingModel)
+  ccall((:SetParamScalingModelPtr, preprocess_scaleLibrary), Nothing, (Ptr{Nothing}, Cstring, Ptr{Nothing}), params, paramName, model.ptr)
+end
+
+# Delete an instantiated model pointer.
+function DeleteScalingModel(ptr::Ptr{Nothing})
+  ccall((:DeleteScalingModelPtr, preprocess_scaleLibrary), Nothing, (Ptr{Nothing},), ptr)
 end
 
 # Serialize a model to the given stream.
 function serializeScalingModel(stream::IO, model::ScalingModel)
   buf_len = UInt[0]
-  buf_ptr = ccall((:SerializeScalingModelPtr, preprocess_scaleLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, Base.pointer(buf_len))
+  buf_ptr = ccall((:SerializeScalingModelPtr, preprocess_scaleLibrary), Ptr{UInt8}, (Ptr{Nothing}, Ptr{UInt}), model.ptr, pointer(buf_len))
   buf = Base.unsafe_wrap(Vector{UInt8}, buf_ptr, buf_len[1]; own=true)
+  write(stream, buf_len[1])
   write(stream, buf)
 end
 # Deserialize a model from the given stream.
 function deserializeScalingModel(stream::IO)::ScalingModel
-  buffer = read(stream)
-  ScalingModel(ccall((:DeserializeScalingModelPtr, preprocess_scaleLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), Base.pointer(buffer), length(buffer)))
+  buf_len = read(stream, UInt)
+  buffer = read(stream, buf_len)
+  GC.@preserve buffer ScalingModel(ccall((:DeserializeScalingModelPtr, preprocess_scaleLibrary), Ptr{Nothing}, (Ptr{UInt8}, UInt), pointer(buffer), length(buffer)))
 end
 end # module
 
@@ -147,42 +155,54 @@ function preprocess_scale(input;
   # Force the symbols to load.
   ccall((:loadSymbols, preprocess_scaleLibrary), Nothing, ());
 
-  IORestoreSettings("Scale Data")
+  # Create the set of model pointers to avoid setting multiple finalizers.
+  modelPtrs = Set{Ptr{Nothing}}()
 
+  p = GetParameters("preprocess_scale")
+  t = Timers()
+
+  juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  IOSetParamMat("input", input, points_are_rows)
+  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
   if !ismissing(epsilon)
-    IOSetParam("epsilon", convert(Float64, epsilon))
+    SetParam(p, "epsilon", convert(Float64, epsilon))
   end
   if !ismissing(input_model)
-    preprocess_scale_internal.IOSetParamScalingModel("input_model", convert(ScalingModel, input_model))
+    push!(modelPtrs, convert(ScalingModel, input_model).ptr)
+    preprocess_scale_internal.SetParamScalingModel(p, "input_model", convert(ScalingModel, input_model))
   end
   if !ismissing(inverse_scaling)
-    IOSetParam("inverse_scaling", convert(Bool, inverse_scaling))
+    SetParam(p, "inverse_scaling", convert(Bool, inverse_scaling))
   end
   if !ismissing(max_value)
-    IOSetParam("max_value", convert(Int, max_value))
+    SetParam(p, "max_value", convert(Int, max_value))
   end
   if !ismissing(min_value)
-    IOSetParam("min_value", convert(Int, min_value))
+    SetParam(p, "min_value", convert(Int, min_value))
   end
   if !ismissing(scaler_method)
-    IOSetParam("scaler_method", convert(String, scaler_method))
+    SetParam(p, "scaler_method", convert(String, scaler_method))
   end
   if !ismissing(seed)
-    IOSetParam("seed", convert(Int, seed))
+    SetParam(p, "seed", convert(Int, seed))
   end
   if verbose !== nothing && verbose === true
-    IOEnableVerbose()
+    EnableVerbose()
   else
-    IODisableVerbose()
+    DisableVerbose()
   end
 
-  IOSetPassed("output")
-  IOSetPassed("output_model")
+  SetPassed(p, "output")
+  SetPassed(p, "output_model")
   # Call the program.
-  preprocess_scale_mlpackMain()
+  call_preprocess_scale(p, t)
 
-  return IOGetParamMat("output", points_are_rows),
-         preprocess_scale_internal.IOGetParamScalingModel("output_model")
+  results = (GetParamMat(p, "output", points_are_rows, juliaOwnedMemory),
+             preprocess_scale_internal.GetParamScalingModel(p, "output_model", modelPtrs))
+
+  # We are responsible for cleaning up the `p` and `t` objects.
+  DeleteParameters(p)
+  DeleteTimers(t)
+
+  return results
 end
