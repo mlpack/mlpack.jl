@@ -53,3 +53,7 @@ mlpack_jll = "x.y.z"
 ```
 
  12. Commit any changed files and any added files in `src/`.
+
+ 13. Update the package in the Julia registry by using the web interface on
+     https://juliahub.com.  (Find the "Register packages" drop-down after
+     logging in, and follow the directions there to open a PR to the registry.)
