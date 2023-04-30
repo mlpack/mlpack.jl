@@ -167,7 +167,7 @@ function local_coordinate_coding(;
     SetParam(p, "atoms", convert(Int, atoms))
   end
   if !ismissing(initial_dictionary)
-    SetParamMat(p, "initial_dictionary", initial_dictionary, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "initial_dictionary", initial_dictionary, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(input_model)
     push!(modelPtrs, convert(LocalCoordinateCoding, input_model).ptr)
@@ -186,13 +186,13 @@ function local_coordinate_coding(;
     SetParam(p, "seed", convert(Int, seed))
   end
   if !ismissing(test)
-    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "test", test, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(tolerance)
     SetParam(p, "tolerance", convert(Float64, tolerance))
   end
   if !ismissing(training)
-    SetParamMat(p, "training", training, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "training", training, points_are_rows, false, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
     EnableVerbose()

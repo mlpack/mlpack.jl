@@ -126,9 +126,9 @@ function preprocess_split(input;
 
   juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
+  SetParamMat(p, "input", input, points_are_rows, false, juliaOwnedMemory)
   if !ismissing(input_labels)
-    SetParamUMat(p, "input_labels", input_labels, points_are_rows, juliaOwnedMemory)
+    SetParamUMat(p, "input_labels", input_labels, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(no_shuffle)
     SetParam(p, "no_shuffle", convert(Bool, no_shuffle))

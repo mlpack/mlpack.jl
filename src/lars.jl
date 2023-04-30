@@ -165,7 +165,7 @@ function lars(;
   juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   if !ismissing(input)
-    SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "input", input, points_are_rows, true, juliaOwnedMemory)
   end
   if !ismissing(input_model)
     push!(modelPtrs, convert(LARS, input_model).ptr)
@@ -178,10 +178,10 @@ function lars(;
     SetParam(p, "lambda2", convert(Float64, lambda2))
   end
   if !ismissing(responses)
-    SetParamMat(p, "responses", responses, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "responses", responses, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(test)
-    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "test", test, points_are_rows, true, juliaOwnedMemory)
   end
   if !ismissing(use_cholesky)
     SetParam(p, "use_cholesky", convert(Bool, use_cholesky))

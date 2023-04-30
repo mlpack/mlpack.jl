@@ -175,13 +175,13 @@ function knn(;
     SetParam(p, "leaf_size", convert(Int, leaf_size))
   end
   if !ismissing(query)
-    SetParamMat(p, "query", query, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "query", query, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(random_basis)
     SetParam(p, "random_basis", convert(Bool, random_basis))
   end
   if !ismissing(reference)
-    SetParamMat(p, "reference", reference, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "reference", reference, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(rho)
     SetParam(p, "rho", convert(Float64, rho))
@@ -196,10 +196,10 @@ function knn(;
     SetParam(p, "tree_type", convert(String, tree_type))
   end
   if !ismissing(true_distances)
-    SetParamMat(p, "true_distances", true_distances, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "true_distances", true_distances, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(true_neighbors)
-    SetParamUMat(p, "true_neighbors", true_neighbors, points_are_rows, juliaOwnedMemory)
+    SetParamUMat(p, "true_neighbors", true_neighbors, points_are_rows, false, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
     EnableVerbose()

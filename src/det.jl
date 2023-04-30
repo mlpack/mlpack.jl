@@ -168,10 +168,10 @@ function det(;
     SetParam(p, "skip_pruning", convert(Bool, skip_pruning))
   end
   if !ismissing(test)
-    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "test", test, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(training)
-    SetParamMat(p, "training", training, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "training", training, points_are_rows, false, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
     EnableVerbose()

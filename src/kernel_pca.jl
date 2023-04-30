@@ -136,7 +136,7 @@ function kernel_pca(input,
 
   juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
+  SetParamMat(p, "input", input, points_are_rows, false, juliaOwnedMemory)
   SetParam(p, "kernel", kernel)
   if !ismissing(bandwidth)
     SetParam(p, "bandwidth", convert(Float64, bandwidth))

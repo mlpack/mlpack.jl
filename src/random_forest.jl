@@ -217,13 +217,13 @@ function random_forest(;
     SetParam(p, "subspace_dim", convert(Int, subspace_dim))
   end
   if !ismissing(test)
-    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "test", test, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(test_labels)
     SetParamURow(p, "test_labels", test_labels, juliaOwnedMemory)
   end
   if !ismissing(training)
-    SetParamMat(p, "training", training, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "training", training, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(warm_start)
     SetParam(p, "warm_start", convert(Bool, warm_start))

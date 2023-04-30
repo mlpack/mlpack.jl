@@ -105,13 +105,13 @@ function nmf(input,
 
   juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
+  SetParamMat(p, "input", input, points_are_rows, false, juliaOwnedMemory)
   SetParam(p, "rank", rank)
   if !ismissing(initial_h)
-    SetParamMat(p, "initial_h", initial_h, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "initial_h", initial_h, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(initial_w)
-    SetParamMat(p, "initial_w", initial_w, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "initial_w", initial_w, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(max_iterations)
     SetParam(p, "max_iterations", convert(Int, max_iterations))

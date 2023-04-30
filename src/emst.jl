@@ -86,7 +86,7 @@ function emst(input;
 
   juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
+  SetParamMat(p, "input", input, points_are_rows, false, juliaOwnedMemory)
   if !ismissing(leaf_size)
     SetParam(p, "leaf_size", convert(Int, leaf_size))
   end

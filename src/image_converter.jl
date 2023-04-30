@@ -99,7 +99,7 @@ function image_converter(input::Vector{String};
     SetParam(p, "channels", convert(Int, channels))
   end
   if !ismissing(dataset)
-    SetParamMat(p, "dataset", dataset, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "dataset", dataset, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(height)
     SetParam(p, "height", convert(Int, height))

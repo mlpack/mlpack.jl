@@ -87,6 +87,9 @@ update rules
  - 'SVDCompleteIncremental' -- SVD complete incremental learning
  - 'BiasSVD' -- Bias SVD using a SGD optimizer
  - 'SVDPP' -- SVD++ using a SGD optimizer
+ - 'RandSVD' -- RandomizedSVD learning
+ - 'QSVD' -- QuicSVD learning
+ - 'BKSVD' -- Block Krylov SVD learning
 
 
 The following neighbor search algorithms can be specified via the
@@ -249,7 +252,7 @@ function cf(;
     SetParam(p, "normalization", convert(String, normalization))
   end
   if !ismissing(query)
-    SetParamUMat(p, "query", query, points_are_rows, juliaOwnedMemory)
+    SetParamUMat(p, "query", query, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(rank)
     SetParam(p, "rank", convert(Int, rank))
@@ -261,10 +264,10 @@ function cf(;
     SetParam(p, "seed", convert(Int, seed))
   end
   if !ismissing(test)
-    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "test", test, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(training)
-    SetParamMat(p, "training", training, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "training", training, points_are_rows, false, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
     EnableVerbose()

@@ -242,10 +242,10 @@ function kde(;
     SetParam(p, "monte_carlo", convert(Bool, monte_carlo))
   end
   if !ismissing(query)
-    SetParamMat(p, "query", query, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "query", query, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(reference)
-    SetParamMat(p, "reference", reference, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "reference", reference, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(rel_error)
     SetParam(p, "rel_error", convert(Float64, rel_error))

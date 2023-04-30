@@ -98,7 +98,7 @@ function mean_shift(input;
 
   juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
+  SetParamMat(p, "input", input, points_are_rows, false, juliaOwnedMemory)
   if !ismissing(force_convergence)
     SetParam(p, "force_convergence", convert(Bool, force_convergence))
   end

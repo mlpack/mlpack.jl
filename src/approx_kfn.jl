@@ -191,7 +191,7 @@ function approx_kfn(;
     SetParam(p, "calculate_error", convert(Bool, calculate_error))
   end
   if !ismissing(exact_distances)
-    SetParamMat(p, "exact_distances", exact_distances, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "exact_distances", exact_distances, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(input_model)
     push!(modelPtrs, convert(ApproxKFNModel, input_model).ptr)
@@ -207,10 +207,10 @@ function approx_kfn(;
     SetParam(p, "num_tables", convert(Int, num_tables))
   end
   if !ismissing(query)
-    SetParamMat(p, "query", query, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "query", query, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(reference)
-    SetParamMat(p, "reference", reference, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "reference", reference, points_are_rows, false, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
     EnableVerbose()

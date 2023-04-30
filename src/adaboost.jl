@@ -167,13 +167,13 @@ function adaboost(;
     SetParamURow(p, "labels", labels, juliaOwnedMemory)
   end
   if !ismissing(test)
-    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "test", test, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(tolerance)
     SetParam(p, "tolerance", convert(Float64, tolerance))
   end
   if !ismissing(training)
-    SetParamMat(p, "training", training, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "training", training, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(weak_learner)
     SetParam(p, "weak_learner", convert(String, weak_learner))

@@ -190,13 +190,13 @@ function krann(;
     SetParam(p, "naive", convert(Bool, naive))
   end
   if !ismissing(query)
-    SetParamMat(p, "query", query, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "query", query, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(random_basis)
     SetParam(p, "random_basis", convert(Bool, random_basis))
   end
   if !ismissing(reference)
-    SetParamMat(p, "reference", reference, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "reference", reference, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(sample_at_leaves)
     SetParam(p, "sample_at_leaves", convert(Bool, sample_at_leaves))

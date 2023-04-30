@@ -193,7 +193,7 @@ function gmm_train(gaussians::Int,
   juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   SetParam(p, "gaussians", gaussians)
-  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
+  SetParamMat(p, "input", input, points_are_rows, false, juliaOwnedMemory)
   if !ismissing(diagonal_covariance)
     SetParam(p, "diagonal_covariance", convert(Bool, diagonal_covariance))
   end

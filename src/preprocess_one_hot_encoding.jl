@@ -71,7 +71,7 @@ function preprocess_one_hot_encoding(dimensions::Vector{Int},
   juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   SetParam(p, "dimensions", dimensions)
-  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
+  SetParamMat(p, "input", input, points_are_rows, false, juliaOwnedMemory)
   if verbose !== nothing && verbose === true
     EnableVerbose()
   else

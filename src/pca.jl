@@ -95,7 +95,7 @@ function pca(input;
 
   juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
+  SetParamMat(p, "input", input, points_are_rows, false, juliaOwnedMemory)
   if !ismissing(decomposition_method)
     SetParam(p, "decomposition_method", convert(String, decomposition_method))
   end

@@ -170,7 +170,7 @@ function kmeans(clusters::Int,
   juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
   SetParam(p, "clusters", clusters)
-  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
+  SetParamMat(p, "input", input, points_are_rows, false, juliaOwnedMemory)
   if !ismissing(algorithm)
     SetParam(p, "algorithm", convert(String, algorithm))
   end
@@ -181,7 +181,7 @@ function kmeans(clusters::Int,
     SetParam(p, "in_place", convert(Bool, in_place))
   end
   if !ismissing(initial_centroids)
-    SetParamMat(p, "initial_centroids", initial_centroids, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "initial_centroids", initial_centroids, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(kill_empty_clusters)
     SetParam(p, "kill_empty_clusters", convert(Bool, kill_empty_clusters))

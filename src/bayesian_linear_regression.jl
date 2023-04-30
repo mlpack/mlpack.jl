@@ -169,7 +169,7 @@ function bayesian_linear_regression(;
     SetParam(p, "center", convert(Bool, center))
   end
   if !ismissing(input)
-    SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "input", input, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(input_model)
     push!(modelPtrs, convert(BayesianLinearRegression, input_model).ptr)
@@ -182,7 +182,7 @@ function bayesian_linear_regression(;
     SetParam(p, "scale", convert(Bool, scale))
   end
   if !ismissing(test)
-    SetParamMat(p, "test", test, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "test", test, points_are_rows, false, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
     EnableVerbose()

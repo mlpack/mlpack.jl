@@ -101,7 +101,7 @@ function preprocess_describe(input;
 
   juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
+  SetParamMat(p, "input", input, points_are_rows, false, juliaOwnedMemory)
   if !ismissing(dimension)
     SetParam(p, "dimension", convert(Int, dimension))
   end

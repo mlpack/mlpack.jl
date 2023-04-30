@@ -102,7 +102,7 @@ function gmm_probability(input,
 
   juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
+  SetParamMat(p, "input", input, points_are_rows, false, juliaOwnedMemory)
   push!(modelPtrs, convert(GMM, input_model).ptr)
   gmm_probability_internal.SetParamGMM(p, "input_model", convert(GMM, input_model))
   if verbose !== nothing && verbose === true

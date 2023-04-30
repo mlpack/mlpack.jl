@@ -203,7 +203,7 @@ function decision_tree(;
     SetParam(p, "training", convert(Tuple{Array{Bool, 1}, Array{Float64, 2}}, training), points_are_rows, juliaOwnedMemory)
   end
   if !ismissing(weights)
-    SetParamMat(p, "weights", weights, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "weights", weights, points_are_rows, false, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
     EnableVerbose()

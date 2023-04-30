@@ -100,7 +100,7 @@ function hmm_loglik(input,
 
   juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
+  SetParamMat(p, "input", input, points_are_rows, false, juliaOwnedMemory)
   push!(modelPtrs, convert(HMMModel, input_model).ptr)
   hmm_loglik_internal.SetParamHMMModel(p, "input_model", convert(HMMModel, input_model))
   if verbose !== nothing && verbose === true

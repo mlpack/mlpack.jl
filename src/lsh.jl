@@ -174,10 +174,10 @@ function lsh(;
     SetParam(p, "projections", convert(Int, projections))
   end
   if !ismissing(query)
-    SetParamMat(p, "query", query, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "query", query, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(reference)
-    SetParamMat(p, "reference", reference, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "reference", reference, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(second_hash_size)
     SetParam(p, "second_hash_size", convert(Int, second_hash_size))
@@ -189,7 +189,7 @@ function lsh(;
     SetParam(p, "tables", convert(Int, tables))
   end
   if !ismissing(true_neighbors)
-    SetParamUMat(p, "true_neighbors", true_neighbors, points_are_rows, juliaOwnedMemory)
+    SetParamUMat(p, "true_neighbors", true_neighbors, points_are_rows, false, juliaOwnedMemory)
   end
   if verbose !== nothing && verbose === true
     EnableVerbose()

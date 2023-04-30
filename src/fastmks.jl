@@ -180,10 +180,10 @@ function fastmks(;
     SetParam(p, "offset", convert(Float64, offset))
   end
   if !ismissing(query)
-    SetParamMat(p, "query", query, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "query", query, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(reference)
-    SetParamMat(p, "reference", reference, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "reference", reference, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(scale)
     SetParam(p, "scale", convert(Float64, scale))

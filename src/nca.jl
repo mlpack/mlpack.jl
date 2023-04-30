@@ -160,7 +160,7 @@ function nca(input;
 
   juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
+  SetParamMat(p, "input", input, points_are_rows, false, juliaOwnedMemory)
   if !ismissing(armijo_constant)
     SetParam(p, "armijo_constant", convert(Float64, armijo_constant))
   end

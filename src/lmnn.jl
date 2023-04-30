@@ -206,7 +206,7 @@ function lmnn(input;
 
   juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  SetParamMat(p, "input", input, points_are_rows, juliaOwnedMemory)
+  SetParamMat(p, "input", input, points_are_rows, false, juliaOwnedMemory)
   if !ismissing(batch_size)
     SetParam(p, "batch_size", convert(Int, batch_size))
   end
@@ -214,7 +214,7 @@ function lmnn(input;
     SetParam(p, "center", convert(Bool, center))
   end
   if !ismissing(distance)
-    SetParamMat(p, "distance", distance, points_are_rows, juliaOwnedMemory)
+    SetParamMat(p, "distance", distance, points_are_rows, false, juliaOwnedMemory)
   end
   if !ismissing(k)
     SetParam(p, "k", convert(Int, k))
