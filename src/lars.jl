@@ -55,7 +55,7 @@ end
 end # module
 
 """
-    lars(; [input, input_model, lambda1, lambda2, responses, test, use_cholesky, verbose])
+    lars(; [input, input_model, lambda1, lambda2, no_intercept, no_normalize, responses, test, use_cholesky, verbose])
 
 An implementation of LARS: Least Angle Regression (Stagewise/laSso).  This is a
 stage-wise homotopy-based algorithm for L1-regularized linear regression (LASSO)
@@ -125,6 +125,12 @@ julia> _, test_predictions = lars(input_model=lasso_model,
  - `lambda2::Float64`: Regularization parameter for l2-norm penalty. 
       Default value `0`.
       
+ - `no_intercept::Bool`: Do not fit an intercept in the model.  Default
+      value `false`.
+      
+ - `no_normalize::Bool`: Do not normalize data to unit variance before
+      modeling.  Default value `false`.
+      
  - `responses::Array{Float64, 2}`: Matrix of responses/observations (y).
  - `test::Array{Float64, 2}`: Matrix containing points to regress on (test
       points).
@@ -148,6 +154,8 @@ function lars(;
               input_model::Union{LARS, Missing} = missing,
               lambda1::Union{Float64, Missing} = missing,
               lambda2::Union{Float64, Missing} = missing,
+              no_intercept::Union{Bool, Missing} = missing,
+              no_normalize::Union{Bool, Missing} = missing,
               responses = missing,
               test = missing,
               use_cholesky::Union{Bool, Missing} = missing,
@@ -176,6 +184,12 @@ function lars(;
   end
   if !ismissing(lambda2)
     SetParam(p, "lambda2", convert(Float64, lambda2))
+  end
+  if !ismissing(no_intercept)
+    SetParam(p, "no_intercept", convert(Bool, no_intercept))
+  end
+  if !ismissing(no_normalize)
+    SetParam(p, "no_normalize", convert(Bool, no_normalize))
   end
   if !ismissing(responses)
     SetParamMat(p, "responses", responses, points_are_rows, false, juliaOwnedMemory)

@@ -22,11 +22,15 @@ module preprocess_one_hot_encoding_internal
 end # module
 
 """
-    preprocess_one_hot_encoding(dimensions, input; [verbose])
+    preprocess_one_hot_encoding(input; [dimensions, verbose])
 
 This utility takes a dataset and a vector of indices and does one-hot encoding
 of the respective features at those indices. Indices represent the IDs of the
 dimensions to be one-hot encoded.
+
+If no dimensions are specified with `dimensions`, then all categorical-type
+dimensions will be one-hot encoded. Otherwise, only the dimensions given in
+`dimensions` will be one-hot encoded.
 
 The output matrix with encoded features may be saved with the `output`
 parameters.
@@ -37,14 +41,15 @@ So, a simple example where we want to encode 1st and 3rd feature from dataset
 ```julia
 julia> using CSV
 julia> X = CSV.read("X.csv")
-julia> X_ouput = preprocess_one_hot_encoding(1, X)
+julia> X_ouput = preprocess_one_hot_encoding(X; dimensions=1)
 ```
 
 # Arguments
 
- - `dimensions::Vector{Int}`: Index of dimensions thatneed to be one-hot
-      encoded.
- - `input::Array{Float64, 2}`: Matrix containing data.
+ - `input::Tuple{Array{Bool, 1}, Array{Float64, 2}}`: Matrix containing
+      data.
+ - `dimensions::Vector{Int}`: Index of dimensions that need to be one-hot
+      encoded (if unspecified, all categorical dimensions are one-hot encoded).
  - `verbose::Bool`: Display informational messages and the full list of
       parameters and timers at the end of execution.  Default value `false`.
       
@@ -55,8 +60,8 @@ julia> X_ouput = preprocess_one_hot_encoding(1, X)
       data to.
 
 """
-function preprocess_one_hot_encoding(dimensions::Vector{Int},
-                                     input;
+function preprocess_one_hot_encoding(input::Tuple{Array{Bool, 1}, Array{Float64, 2}};
+                                     dimensions::Union{Vector{Int}, Missing} = missing,
                                      verbose::Union{Bool, Missing} = missing,
                                      points_are_rows::Bool = true)
   # Force the symbols to load.
@@ -70,8 +75,10 @@ function preprocess_one_hot_encoding(dimensions::Vector{Int},
 
   juliaOwnedMemory = Set{Ptr{Nothing}}()
   # Process each input argument before calling mlpackMain().
-  SetParam(p, "dimensions", dimensions)
-  SetParamMat(p, "input", input, points_are_rows, false, juliaOwnedMemory)
+  SetParam(p, "input", convert(Tuple{Array{Bool, 1}, Array{Float64, 2}}, input), points_are_rows, juliaOwnedMemory)
+  if !ismissing(dimensions)
+    SetParam(p, "dimensions", convert(Vector{Int}, dimensions))
+  end
   if verbose !== nothing && verbose === true
     EnableVerbose()
   else
