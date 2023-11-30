@@ -8,8 +8,8 @@ into an automated script:
     `julia` target: `make julia`
  3. Copy the Julia bindings (`build/src/mlpack/bindings/julia/mlpack/src/*.jl`)
     to the `src/` directory in this repository.
- 4. Copy `src/mlpack/bindings/julia/mlpack/Project.toml` to this root of this
-    repository.
+ 4. Copy `build/src/mlpack/bindings/julia/mlpack/Project.toml` to this root of
+    this repository.
  5. Start a Julia session in the root of the repository with, e.g.,
     `JULIA_PROJECT=$PWD julia` and add `mlpack_jll` as a dependency:
 

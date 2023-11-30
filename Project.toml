@@ -1,7 +1,7 @@
 name = "mlpack"
 uuid = "cf18a64e-e90e-11e8-37b7-fb5df6478bc0"
 author = ["mlpack developers <mlpack@lists.mlpack.org>"]
-version = "4.2.1"
+version = "4.3.0"
 
 [deps]
 Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
