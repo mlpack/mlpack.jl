@@ -4,7 +4,8 @@ This process isn't automatic, and the steps below can be refined as time goes on
 into an automated script:
 
  1. Check out mlpack code.
- 2. Configure and build the `julia` target: `make julia`
+ 2. Configure with `-DBUILD_JULIA_BINDINGS=ON -DBUILD_TESTS=OFF` and build the
+    `julia` target: `make julia`
  3. Copy the Julia bindings (`build/src/mlpack/bindings/julia/mlpack/src/*.jl`)
     to the `src/` directory in this repository.
  4. Copy `src/mlpack/bindings/julia/mlpack/Project.toml` to this root of this
@@ -29,22 +30,12 @@ for i in src/*.jl;
 done
 ```
 
- 8. Remove the test binding:
+ 8. Check that `src/test_julia_binding.jl` does not exist, and that there are no
+    references to `GaussianKernel` in `src/types.jl`.  (If there are, then the
+    mlpack Julia bindings were built with `-DBUILD_TESTS=ON`.  Disable that
+    option and try again.)
 
-```
-rm -f src/test_julia_binding.jl
-grep -v 'include("test_julia_binding.jl")' src/mlpack.jl > src/mlpack-tmp.jl
-mv src/mlpack-tmp.jl src/mlpack.jl
-grep -v 'test_julia_binding = _Internal.test_julia_binding' src/functions.jl > src/functions-tmp.jl
-mv src/functions-tmp.jl src/functions.jl
-```
-
- 9. Manually remove `GaussianKernel` from `src/types.jl`. (TODO: automate!)
-
- 10. Manually remove the `GaussianKernel` serialization from
-     `src/serialization.jl` (TODO: automate!)
-
- 11. Add the Julia dependency information to `Project.toml`:
+ 9. Add the Julia dependency information to `Project.toml`:
 
 ```
 [compat]
@@ -52,8 +43,8 @@ julia = "1.3"
 mlpack_jll = "x.y.z"
 ```
 
- 12. Commit any changed files and any added files in `src/`.
+ 10. Commit any changed files and any added files in `src/`.
 
- 13. Update the package in the Julia registry by using the web interface on
+ 11. Update the package in the Julia registry by using the web interface on
      https://juliahub.com.  (Find the "Register packages" drop-down after
      logging in, and follow the directions there to open a PR to the registry.)
