@@ -8,12 +8,8 @@ machine learning library"></a>
 
 <h5 align="center">
   <a href="https://mlpack.org">Home</a> |
-  <a href="https://www.mlpack.org/docs.html">Documentation</a> |
-  <a href="https://www.mlpack.org/doc/mlpack-git/doxygen/index.html">Doxygen</a>
-|
-  <a href="https://www.mlpack.org/community.html">Community</a> |
-  <a href="https://www.mlpack.org/questions.html">Help</a> |
-  <a href="https://webchat.freenode.net/?channels=mlpack">IRC Chat</a>
+  <a href="https://www.mlpack.org/doc/index.html">Documentation</a> |
+  <a href="https://www.mlpack.org/questions.html">Questions</a>
 </h5>
 
 This repository contains the *Julia bindings* for mlpack.  These bindings are
@@ -21,7 +17,7 @@ auto-generated, and so this repository is not really maintained or monitored.
 
 If you are *looking for the documentation* for the Julia bindings, try here:
 
- * [Julia binding documentation](https://www.mlpack.org/doc/stable/julia_documentation.html)
+ * [Julia binding documentation](https://www.mlpack.org/doc/user/bindings/julia.html)
 
 If you are *having trouble* or *want to learn more*, try looking in the main
 mlpack repository:
