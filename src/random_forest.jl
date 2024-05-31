@@ -63,8 +63,8 @@ use, or a random forest may be loaded and predictions or class probabilities for
 points may be generated.
 
 The training set and associated labels are specified with the `training` and
-`labels` parameters, respectively.  The labels should be in the range [0,
-num_classes - 1]. Optionally, if `labels` is not specified, the labels are
+`labels` parameters, respectively.  The labels should be in the range `[0,
+num_classes - 1]`. Optionally, if `labels` is not specified, the labels are
 assumed to be the last dimension of the training dataset.
 
 When a model is trained, the `output_model` output parameter may be used to save

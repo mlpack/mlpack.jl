@@ -55,7 +55,7 @@ end
 end # module
 
 """
-    logistic_regression(; [batch_size, decision_boundary, input_model, labels, lambda, max_iterations, optimizer, step_size, test, tolerance, training, verbose])
+    logistic_regression(; [batch_size, decision_boundary, input_model, labels, lambda, max_iterations, optimizer, print_training_accuracy, step_size, test, tolerance, training, verbose])
 
 An implementation of L2-regularized logistic regression using either the L-BFGS
 optimizer or SGD (stochastic gradient descent).  This solves the regression
@@ -114,7 +114,7 @@ julia> using CSV
 julia> data = CSV.read("data.csv")
 julia> labels = CSV.read("labels.csv"; type=Int)
 julia> lr_model, _, _ = logistic_regression(labels=labels,
-            lambda=0.1, training=data)
+            lambda=0.1, print_training_accuracy=1, training=data)
 ```
 
 Then, to use that model to predict classes for the dataset '`test`', storing the
@@ -147,6 +147,10 @@ julia> _, predictions, _ = logistic_regression(input_model=lr_model,
  - `optimizer::String`: Optimizer to use for training ('lbfgs' or 'sgd'). 
       Default value `lbfgs`.
       
+ - `print_training_accuracy::Bool`: If set, then the accuracy of the model
+      on the training set will be printed (verbose must also be specified). 
+      Default value `false`.
+      
  - `step_size::Float64`: Step size for SGD optimizer.  Default value
       `0.01`.
       
@@ -178,6 +182,7 @@ function logistic_regression(;
                              lambda::Union{Float64, Missing} = missing,
                              max_iterations::Union{Int, Missing} = missing,
                              optimizer::Union{String, Missing} = missing,
+                             print_training_accuracy::Union{Bool, Missing} = missing,
                              step_size::Union{Float64, Missing} = missing,
                              test = missing,
                              tolerance::Union{Float64, Missing} = missing,
@@ -216,6 +221,9 @@ function logistic_regression(;
   end
   if !ismissing(optimizer)
     SetParam(p, "optimizer", convert(String, optimizer))
+  end
+  if !ismissing(print_training_accuracy)
+    SetParam(p, "print_training_accuracy", convert(Bool, print_training_accuracy))
   end
   if !ismissing(step_size)
     SetParam(p, "step_size", convert(Float64, step_size))

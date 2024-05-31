@@ -79,9 +79,6 @@ If classifying a test set is desired, the test set may be specified with the
 `predictions`predictions  parameter.  If saving the trained model is desired,
 this may be done with the `output_model` output parameter.
 
-Note: the `output` and `output_probs` parameters are deprecated and will be
-removed in mlpack 4.0.0.  Use `predictions` and `probabilities` instead.
-
 For example, to train a Naive Bayes classifier on the dataset `data` with labels
 `labels` and save the model to `nbc_model`, the following command may be used:
 
@@ -89,7 +86,7 @@ For example, to train a Naive Bayes classifier on the dataset `data` with labels
 julia> using CSV
 julia> data = CSV.read("data.csv")
 julia> labels = CSV.read("labels.csv"; type=Int)
-julia> _, nbc_model, _, _, _ = nbc(labels=labels, training=data)
+julia> nbc_model, _, _ = nbc(labels=labels, training=data)
 ```
 
 Then, to use `nbc_model` to predict the classes of the dataset `test_set` and
@@ -98,7 +95,7 @@ save the predicted classes to `predictions`, the following command may be used:
 ```julia
 julia> using CSV
 julia> test_set = CSV.read("test_set.csv")
-julia> predictions, _, _, _, _ = nbc(input_model=nbc_model,
+julia> _, predictions, _ = nbc(input_model=nbc_model,
             test=test_set)
 ```
 
@@ -118,11 +115,7 @@ julia> predictions, _, _, _, _ = nbc(input_model=nbc_model,
 
 # Return values
 
- - `output::Array{Int, 1}`: The matrix in which the predicted labels for
-      the test set will be written (deprecated).
  - `output_model::NBCModel`: File to save trained Naive Bayes model to.
- - `output_probs::Array{Float64, 2}`: The matrix in which the predicted
-      probability of labels for the test set will be written (deprecated).
  - `predictions::Array{Int, 1}`: The matrix in which the predicted labels
       for the test set will be written.
  - `probabilities::Array{Float64, 2}`: The matrix in which the predicted
@@ -170,17 +163,13 @@ function nbc(;
     DisableVerbose()
   end
 
-  SetPassed(p, "output")
   SetPassed(p, "output_model")
-  SetPassed(p, "output_probs")
   SetPassed(p, "predictions")
   SetPassed(p, "probabilities")
   # Call the program.
   call_nbc(p, t)
 
-  results = (GetParamURow(p, "output", juliaOwnedMemory),
-             nbc_internal.GetParamNBCModel(p, "output_model", modelPtrs),
-             GetParamMat(p, "output_probs", points_are_rows, juliaOwnedMemory),
+  results = (nbc_internal.GetParamNBCModel(p, "output_model", modelPtrs),
              GetParamURow(p, "predictions", juliaOwnedMemory),
              GetParamMat(p, "probabilities", points_are_rows, juliaOwnedMemory))
 

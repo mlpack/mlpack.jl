@@ -80,10 +80,6 @@ parameter.  The predicted classes for each point in the test dataset are output
 to the `predictions` output parameter.  The AdaBoost model itself is output to
 the `output_model` output parameter.
 
-Note: the following parameter is deprecated and will be removed in mlpack 4.0.0:
-`output`.
-Use `predictions` instead of `output`.
-
 For example, to run AdaBoost on an input dataset `data` with labels `labels`and
 perceptrons as the weak learner type, storing the trained model in `model`, one
 could use the following command: 
@@ -92,7 +88,7 @@ could use the following command:
 julia> using CSV
 julia> data = CSV.read("data.csv")
 julia> labels = CSV.read("labels.csv"; type=Int)
-julia> _, model, _, _ = adaboost(labels=labels, training=data,
+julia> model, _, _ = adaboost(labels=labels, training=data,
             weak_learner="perceptron")
 ```
 
@@ -103,7 +99,7 @@ with the following command:
 ```julia
 julia> using CSV
 julia> test_data = CSV.read("test_data.csv")
-julia> _, _, predictions, _ = adaboost(input_model=model,
+julia> _, predictions, _ = adaboost(input_model=model,
             test=test_data)
 ```
 
@@ -128,7 +124,6 @@ julia> _, _, predictions, _ = adaboost(input_model=model,
 
 # Return values
 
- - `output::Array{Int, 1}`: Predicted labels for the test set.
  - `output_model::AdaBoostModel`: Output trained AdaBoost model.
  - `predictions::Array{Int, 1}`: Predicted labels for the test set.
  - `probabilities::Array{Float64, 2}`: Predicted class probabilities for
@@ -184,15 +179,13 @@ function adaboost(;
     DisableVerbose()
   end
 
-  SetPassed(p, "output")
   SetPassed(p, "output_model")
   SetPassed(p, "predictions")
   SetPassed(p, "probabilities")
   # Call the program.
   call_adaboost(p, t)
 
-  results = (GetParamURow(p, "output", juliaOwnedMemory),
-             adaboost_internal.GetParamAdaBoostModel(p, "output_model", modelPtrs),
+  results = (adaboost_internal.GetParamAdaBoostModel(p, "output_model", modelPtrs),
              GetParamURow(p, "predictions", juliaOwnedMemory),
              GetParamMat(p, "probabilities", points_are_rows, juliaOwnedMemory))
 

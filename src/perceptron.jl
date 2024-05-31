@@ -73,10 +73,6 @@ classification results on the test set may be saved with the `predictions`
 output parameter.  The perceptron model may be saved with the `output_model`
 output parameter.
 
-Note: the following parameter is deprecated and will be removed in mlpack 4.0.0:
-`output`.
-Use `predictions` instead of `output`.
-
 The training data given with the `training` option may have class labels as its
 last dimension (so, if the training data is in CSV format, labels should be the
 last column).  Alternately, the `labels` parameter may be used to specify a
@@ -91,7 +87,7 @@ on `training_data` with labels `training_labels`, and saves the model to
 julia> using CSV
 julia> training_data = CSV.read("training_data.csv")
 julia> training_labels = CSV.read("training_labels.csv"; type=Int)
-julia> _, perceptron_model, _ = perceptron(labels=training_labels,
+julia> perceptron_model, _ = perceptron(labels=training_labels,
             training=training_data)
 ```
 
@@ -102,7 +98,7 @@ Then, this model can be re-used for classification on the test data `test_data`.
 ```julia
 julia> using CSV
 julia> test_data = CSV.read("test_data.csv")
-julia> _, _, predictions = perceptron(input_model=perceptron_model,
+julia> _, predictions = perceptron(input_model=perceptron_model,
             test=test_data)
 ```
 
@@ -131,8 +127,6 @@ error.
 
 # Return values
 
- - `output::Array{Int, 1}`: The matrix in which the predicted labels for
-      the test set will be written.
  - `output_model::PerceptronModel`: Output for trained perceptron model.
  - `predictions::Array{Int, 1}`: The matrix in which the predicted labels
       for the test set will be written.
@@ -179,14 +173,12 @@ function perceptron(;
     DisableVerbose()
   end
 
-  SetPassed(p, "output")
   SetPassed(p, "output_model")
   SetPassed(p, "predictions")
   # Call the program.
   call_perceptron(p, t)
 
-  results = (GetParamURow(p, "output", juliaOwnedMemory),
-             perceptron_internal.GetParamPerceptronModel(p, "output_model", modelPtrs),
+  results = (perceptron_internal.GetParamPerceptronModel(p, "output_model", modelPtrs),
              GetParamURow(p, "predictions", juliaOwnedMemory))
 
   # We are responsible for cleaning up the `p` and `t` objects.

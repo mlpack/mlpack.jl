@@ -78,7 +78,8 @@ users (the size of the neighborhood) to be considered when generating
 recommendations can be specified with the `neighborhood` parameter.
 
 For performing the matrix decomposition, the following optimization algorithms
-can be specified via the `algorithm` parameter: 
+can be specified via the `algorithm` parameter:
+
  - 'RegSVD' -- Regularized SVD using a SGD optimizer
  - 'NMF' -- Non-negative matrix factorization with alternating least squares
 update rules
@@ -94,6 +95,7 @@ update rules
 
 The following neighbor search algorithms can be specified via the
 `neighbor_search` parameter:
+
  - 'cosine'  -- Cosine Search Algorithm
  - 'euclidean'  -- Euclidean Search Algorithm
  - 'pearson'  -- Pearson Search Algorithm
@@ -101,6 +103,7 @@ The following neighbor search algorithms can be specified via the
 
 The following weight interpolation algorithms can be specified via the
 `interpolation` parameter:
+
  - 'average'  -- Average Interpolation Algorithm
  - 'regression'  -- Regression Interpolation Algorithm
  - 'similarity'  -- Similarity Interpolation Algorithm
@@ -108,6 +111,7 @@ The following weight interpolation algorithms can be specified via the
 
 The following ranking normalization algorithms can be specified via the
 `normalization` parameter:
+
  - 'none'  -- No Normalization
  - 'item_mean'  -- Item Mean Normalization
  - 'overall_mean'  -- Overall Mean Normalization

@@ -55,15 +55,15 @@ end
 end # module
 
 """
-    decision_tree(; [input_model, labels, maximum_depth, minimum_gain_split, minimum_leaf_size, print_training_accuracy, print_training_error, test, test_labels, training, verbose, weights])
+    decision_tree(; [input_model, labels, maximum_depth, minimum_gain_split, minimum_leaf_size, print_training_accuracy, test, test_labels, training, verbose, weights])
 
 Train and evaluate using a decision tree.  Given a dataset containing numeric or
 categorical features, and associated labels for each point in the dataset, this
 program can train a decision tree on that data.
 
 The training set and associated labels are specified with the `training` and
-`labels` parameters, respectively.  The labels should be in the range [0,
-num_classes - 1]. Optionally, if `labels` is not specified, the labels are
+`labels` parameters, respectively.  The labels should be in the range `[0,
+num_classes - 1]`. Optionally, if `labels` is not specified, the labels are
 assumed to be the last dimension of the training dataset.
 
 When a model is trained, the `output_model` output parameter may be used to save
@@ -73,7 +73,7 @@ parameter is specified.  The `minimum_leaf_size` parameter specifies the minimum
 number of training points that must fall into each leaf for it to be split.  The
 `minimum_gain_split` parameter specifies the minimum gain that is needed for the
 node to split.  The `maximum_depth` parameter specifies the maximum depth of the
-tree.  If `print_training_error` is specified, the training error will be
+tree.  If `print_training_accuracy` is specified, the training accuracy will be
 printed.
 
 Test data may be specified with the `test` parameter, and if performance numbers
@@ -124,9 +124,6 @@ julia> _, predictions, _ = decision_tree(input_model=tree,
  - `print_training_accuracy::Bool`: Print the training accuracy.  Default
       value `false`.
       
- - `print_training_error::Bool`: Print the training error (deprecated;
-      will be removed in mlpack 4.0.0).  Default value `false`.
-      
  - `test::Tuple{Array{Bool, 1}, Array{Float64, 2}}`: Testing dataset (may
       be categorical).
  - `test_labels::Array{Int, 1}`: Test point labels, if accuracy
@@ -153,7 +150,6 @@ function decision_tree(;
                        minimum_gain_split::Union{Float64, Missing} = missing,
                        minimum_leaf_size::Union{Int, Missing} = missing,
                        print_training_accuracy::Union{Bool, Missing} = missing,
-                       print_training_error::Union{Bool, Missing} = missing,
                        test::Union{Tuple{Array{Bool, 1}, Array{Float64, 2}}, Missing} = missing,
                        test_labels = missing,
                        training::Union{Tuple{Array{Bool, 1}, Array{Float64, 2}}, Missing} = missing,
@@ -189,9 +185,6 @@ function decision_tree(;
   end
   if !ismissing(print_training_accuracy)
     SetParam(p, "print_training_accuracy", convert(Bool, print_training_accuracy))
-  end
-  if !ismissing(print_training_error)
-    SetParam(p, "print_training_error", convert(Bool, print_training_error))
   end
   if !ismissing(test)
     SetParam(p, "test", convert(Tuple{Array{Bool, 1}, Array{Float64, 2}}, test), points_are_rows, juliaOwnedMemory)
