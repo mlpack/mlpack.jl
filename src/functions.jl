@@ -45,4 +45,3 @@ softmax_regression = _Internal.softmax_regression
 sparse_coding = _Internal.sparse_coding
 adaboost = _Internal.adaboost
 linear_regression = _Internal.linear_regression
-image_converter = _Internal.image_converter

@@ -22,7 +22,7 @@ module lmnn_internal
 end # module
 
 """
-    lmnn(input; [batch_size, center, distance, k, labels, linear_scan, max_iterations, normalize, optimizer, passes, print_accuracy, range, rank, regularization, seed, step_size, tolerance, verbose])
+    lmnn(input; [batch_size, center, distance, k, labels, linear_scan, max_iterations, normalize, optimizer, passes, print_accuracy, rank, regularization, seed, step_size, tolerance, update_interval, verbose])
 
 This program implements Large Margin Nearest Neighbors, a distance learning
 technique.  The method seeks to improve k-nearest-neighbor classification on a
@@ -44,7 +44,8 @@ The program also requires number of targets neighbors to work with ( specified
 with `k`), A regularization parameter can also be passed, It acts as a trade of
 between the pulling and pushing terms (specified with `regularization`), In
 addition, this implementation of LMNN includes a parameter to decide the
-interval after which impostors must be re-calculated (specified with `range`).
+interval after which impostors must be re-calculated (specified with
+`update_interval`).
 
 Output can either be the learned distance matrix (specified with `output`), or
 the transformed dataset  (specified with `transformed_data`), or both.
@@ -99,14 +100,14 @@ julia> _, output, _ = lmnn(iris; k=3, labels=iris_labels,
             optimizer="bbsgd")
 ```
 
-An another program call making use of range & regularization parameter with
-dataset having labels as last column can be made as: 
+Another program call making use of update interval & regularization parameter
+with dataset having labels as last column can be made as: 
 
 ```julia
 julia> using CSV
 julia> letter_recognition = CSV.read("letter_recognition.csv")
-julia> _, output, _ = lmnn(letter_recognition; k=5, range=10,
-            regularization=0.4)
+julia> _, output, _ = lmnn(letter_recognition; k=5,
+            regularization=0.4, update_interval=10)
 ```
 
 # Arguments
@@ -143,9 +144,6 @@ julia> _, output, _ = lmnn(letter_recognition; k=5, range=10,
  - `print_accuracy::Bool`: Print accuracies on initial and transformed
       dataset  Default value `false`.
       
- - `range::Int`: Number of iterations after which impostors needs to be
-      recalculated  Default value `1`.
-      
  - `rank::Int`: Rank of distance matrix to be optimized.   Default value
       `0`.
       
@@ -160,6 +158,9 @@ julia> _, output, _ = lmnn(letter_recognition; k=5, range=10,
       
  - `tolerance::Float64`: Maximum tolerance for termination of AMSGrad,
       BB_SGD, SGD or L-BFGS.  Default value `1e-07`.
+      
+ - `update_interval::Int`: Number of iterations after which impostors need
+      to be recalculated.  Default value `1`.
       
  - `verbose::Bool`: Display informational messages and the full list of
       parameters and timers at the end of execution.  Default value `false`.
@@ -187,12 +188,12 @@ function lmnn(input;
               optimizer::Union{String, Missing} = missing,
               passes::Union{Int, Missing} = missing,
               print_accuracy::Union{Bool, Missing} = missing,
-              range::Union{Int, Missing} = missing,
               rank::Union{Int, Missing} = missing,
               regularization::Union{Float64, Missing} = missing,
               seed::Union{Int, Missing} = missing,
               step_size::Union{Float64, Missing} = missing,
               tolerance::Union{Float64, Missing} = missing,
+              update_interval::Union{Int, Missing} = missing,
               verbose::Union{Bool, Missing} = missing,
               points_are_rows::Bool = true)
   # Force the symbols to load.
@@ -240,9 +241,6 @@ function lmnn(input;
   if !ismissing(print_accuracy)
     SetParam(p, "print_accuracy", convert(Bool, print_accuracy))
   end
-  if !ismissing(range)
-    SetParam(p, "range", convert(Int, range))
-  end
   if !ismissing(rank)
     SetParam(p, "rank", convert(Int, rank))
   end
@@ -257,6 +255,9 @@ function lmnn(input;
   end
   if !ismissing(tolerance)
     SetParam(p, "tolerance", convert(Float64, tolerance))
+  end
+  if !ismissing(update_interval)
+    SetParam(p, "update_interval", convert(Int, update_interval))
   end
   if verbose !== nothing && verbose === true
     EnableVerbose()

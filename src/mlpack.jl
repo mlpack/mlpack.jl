@@ -76,7 +76,6 @@ include("softmax_regression.jl")
 include("sparse_coding.jl")
 include("adaboost.jl")
 include("linear_regression.jl")
-include("image_converter.jl")
 
 end
 include("functions.jl")
