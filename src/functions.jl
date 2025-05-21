@@ -16,6 +16,7 @@ hmm_generate = _Internal.hmm_generate
 hmm_loglik = _Internal.hmm_loglik
 hmm_viterbi = _Internal.hmm_viterbi
 hoeffding_tree = _Internal.hoeffding_tree
+image_converter = _Internal.image_converter
 kde = _Internal.kde
 kernel_pca = _Internal.kernel_pca
 kmeans = _Internal.kmeans
